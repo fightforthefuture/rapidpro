@@ -2379,8 +2379,9 @@ class FlowTest(TembaTest):
         start = FlowStart.objects.get(flow=flow)
 
         # should be in a completed state
-        self.assertEquals(FlowStart.STATUS_COMPLETE, start.status)
-        self.assertEquals(1, start.participant_count)
+        self.assertEqual(start.status, FlowStart.STATUS_COMPLETE)
+        self.assertEqual(start.participant_count, 1)
+        self.assertEqual(set(start.participants.all()), {self.contact})
 
         # do so again but don't restart the participants
         del post_data['restart_participants']
@@ -2389,9 +2390,10 @@ class FlowTest(TembaTest):
 
         # should have a new flow start
         new_start = FlowStart.objects.filter(flow=flow).order_by('-created_on').first()
-        self.assertNotEquals(start, new_start)
-        self.assertEquals(FlowStart.STATUS_COMPLETE, new_start.status)
-        self.assertEquals(0, new_start.participant_count)
+        self.assertNotEqual(start, new_start)
+        self.assertEqual(new_start.status, FlowStart.STATUS_COMPLETE)
+        self.assertEqual(new_start.participant_count, 0)
+        self.assertEqual(set(new_start.participants.all()), set())
 
         # mark that start as incomplete
         new_start.status = FlowStart.STATUS_STARTING
