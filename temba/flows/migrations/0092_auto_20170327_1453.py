@@ -37,5 +37,10 @@ class Migration(migrations.Migration):
             name='participant_count',
             field=models.IntegerField(default=0, help_text='How many unique contacts were started down the flow'),
         ),
+        migrations.AddField(
+            model_name='flowstart',
+            name='purged',
+            field=models.BooleanField(default=False, help_text='If the empty runs for this broadcast have been purged'),
+        ),
         migrations.RunPython(populate_flowstart_participant_count),
     ]

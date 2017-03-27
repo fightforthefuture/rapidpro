@@ -4475,6 +4475,9 @@ class FlowStart(SmartModel):
     participant_count = models.IntegerField(default=0,
                                             help_text=_("How many unique contacts were started down the flow"))
 
+    purged = models.BooleanField(default=False,
+                                 help_text="If the empty runs for this broadcast have been purged")
+
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
