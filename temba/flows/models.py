@@ -1472,21 +1472,18 @@ class Flow(TembaModel):
             ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
             FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
 
-        contact_count = len(all_contact_ids)
-
         # update our total flow count on our flow start so we can keep track of when it is finished
         if flow_start:
-            flow_start.contact_count = contact_count
-            flow_start.save(update_fields=['contact_count'])
+            flow_start.update_participants(all_contact_ids)
 
         # if there are no contacts to start this flow, then update our status and exit this flow
-        if contact_count == 0:
+        if len(all_contact_ids) == 0:
             if flow_start:
                 flow_start.update_status()
             return []
 
         # single contact starting from a trigger? increment our unread count
-        if start_msg and contact_count == 1:
+        if start_msg and len(all_contact_ids) == 1:
             if Contact.objects.filter(pk=all_contact_ids[0], org=self.org, is_test=False).first():
                 self.increment_unread_responses()
 
@@ -4441,6 +4438,15 @@ class ActionLog(models.Model):
         return self.text
 
 
+class FlowParticipant(models.Model):
+    """
+    Through table for flowstart participants many-to-many
+    """
+    start = models.ForeignKey('flows.FlowStart')
+
+    contact = models.ForeignKey(Contact)
+
+
 @six.python_2_unicode_compatible
 class FlowStart(SmartModel):
     STATUS_PENDING = 'P'
@@ -4462,8 +4468,12 @@ class FlowStart(SmartModel):
     restart_participants = models.BooleanField(default=True,
                                                help_text=_("Whether to restart any participants already in this flow"))
 
-    contact_count = models.IntegerField(default=0,
-                                        help_text=_("How many unique contacts were started down the flow"))
+    participants = models.ManyToManyField(Contact, through=FlowParticipant, verbose_name=_("Participants"),
+                                          related_name='flowstarts',
+                                          help_text=_("The contacts who were started down the flow"))
+
+    participant_count = models.IntegerField(default=0,
+                                            help_text=_("How many unique contacts were started down the flow"))
 
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
@@ -4500,8 +4510,8 @@ class FlowStart(SmartModel):
         self.save(update_fields=['status'])
 
         try:
-            groups = [g for g in self.groups.all()]
-            contacts = [c for c in self.contacts.all().only('is_test')]
+            groups = list(self.groups.all())
+            contacts = list(self.contacts.all())
 
             # load up our extra if any
             extra = json.loads(self.extra) if self.extra else None
@@ -4516,9 +4526,17 @@ class FlowStart(SmartModel):
             self.save(update_fields=['status'])
             raise e
 
+    def update_participants(self, contact_ids):
+        for id_batch in chunk_list(contact_ids, 5000):
+            batch = [FlowParticipant(start=self, contact_id=c) for c in id_batch]
+            FlowParticipant.objects.bulk_create(batch)
+
+        self.participant_count = len(contact_ids)
+        self.save(update_fields=('participant_count',))
+
     def update_status(self):
         # only update our status to complete if we have started as many runs as our total contact count
-        if self.runs.count() == self.contact_count:
+        if self.runs.count() == self.participant_count:
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=['status'])
 
