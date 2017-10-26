@@ -228,7 +228,7 @@ class Flow(TembaModel):
     saved_on = models.DateTimeField(auto_now_add=True,
                                     help_text=_("When this item was saved"))
 
-    saved_by = models.ForeignKey(User, related_name="flow_saves",
+    saved_by = models.ForeignKey(User, related_name="flow_saves_build_test",
                                  help_text=_("The user which last saved this flow"))
 
     base_language = models.CharField(max_length=4, null=True, blank=True,
