@@ -390,9 +390,11 @@ class ContactWriteSerializer(WriteSerializer):
                     self.instance.set_field(self.user, existing_by_key.key, value)
                     continue
                 elif self.new_fields and key in self.new_fields:
-                    new_field = ContactField.get_or_create(org=self.org, user=self.user,
-                                                           key=regex.sub('[^A-Za-z0-9]+', '_', key).lower(),
-                                                           label=key)
+                    new_field = ContactField.get_or_create(
+                        org=self.org, user=self.user,
+                        key=regex.sub('[^A-Za-z0-9]+', '_', key, flags=regex.V0).lower(),
+                        label=key
+                    )
                     self.instance.set_field(self.user, new_field.key, value)
 
                 # TODO as above, need to get users to stop updating via label

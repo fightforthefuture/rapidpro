@@ -9,7 +9,6 @@ import os
 import pycountry
 import random
 
-import re
 import regex
 import six
 import stripe
@@ -1874,7 +1873,7 @@ class Org(SmartModel):
                 extension = mimetypes.guess_extension(content_type)
                 extension = extension.strip('.')
             elif disposition:
-                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                filename = regex.findall("filename=\"(.+)\"", disposition, flags=regex.V0)[0]
                 extension = filename.rpartition('.')[2]
             elif content_type == 'audio/x-wav':
                 extension = 'wav'

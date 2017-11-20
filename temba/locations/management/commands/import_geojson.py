@@ -31,7 +31,7 @@ class Command(BaseCommand):  # pragma: no cover
         # parse our filename.. they are in the format:
         # 192787admin2_simplified.json
         match = regex.match(
-            r'(\w\d+)admin(\d)(_simplified)?\.json$', filename, regex.V0)
+            r'(\w\d+)admin(\d)(_simplified)?\.json$', filename, flags=regex.V0)
         level = None
         is_simplified = None
         if match:
@@ -41,7 +41,7 @@ class Command(BaseCommand):  # pragma: no cover
             # else parse other filenames that are in
             # admin_level_0_simplified.json format.
             match = regex.match(
-                r'admin_level_(\d)(_simplified)?\.json$', filename, regex.V0)
+                r'admin_level_(\d)(_simplified)?\.json$', filename, flags=regex.V0)
             if match:
                 level = int(match.group(1))
                 is_simplified = True if match.group(2) else False

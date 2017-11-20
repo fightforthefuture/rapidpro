@@ -344,7 +344,7 @@ class UssdTriggerForm(BaseTriggerForm):
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()
 
-        if keyword == '' or (keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE)):
+        if keyword == '' or (keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE | regex.V0)):
             raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
 
         return keyword

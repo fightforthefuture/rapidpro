@@ -1,7 +1,7 @@
 from __future__ import unicode_literals, absolute_import
 
 import time
-import re
+import regex
 import requests
 import six
 
@@ -72,7 +72,7 @@ class JasminType(ChannelType):
         # save the external id, response should be in format:
         # Success "07033084-5cfd-4812-90a4-e4d24ffb6e3d"
         external_id = None
-        match = re.match(r"Success \"(.*)\"", response.text)
+        match = regex.match(r"Success \"(.*)\"", response.text, flags=regex.V0)
         if match:
             external_id = match.group(1)
 

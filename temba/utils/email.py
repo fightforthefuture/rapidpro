@@ -1,6 +1,6 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
-import re
+import regex
 import six
 
 from django.core.exceptions import ValidationError
@@ -11,14 +11,14 @@ from django.conf import settings
 
 
 class TembaEmailValidator(EmailValidator):
-    user_regex = re.compile(
+    user_regex = regex.compile(
         r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*\Z"  # dot-atom
         r'|^"([\001-\010\013\014\016-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"\Z)',  # quoted-string
-        re.IGNORECASE)
-    domain_regex = re.compile(
+        flags=regex.IGNORECASE | regex.V0)
+    domain_regex = regex.compile(
         # max length for domain name labels is 63 characters per RFC 1034
         r'(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,63}|[A-Z0-9-]{2,}(?<!-))\Z',
-        re.IGNORECASE)
+        flags=regex.IGNORECASE | regex.V0)
 
 
 temba_validate_email = TembaEmailValidator()

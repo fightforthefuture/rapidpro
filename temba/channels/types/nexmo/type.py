@@ -57,7 +57,11 @@ class NexmoType(ChannelType):
             try:
                 (message_id, event) = client.send_message_via_nexmo(channel.address, msg.urn_path, text)
             except SendException as e:
-                match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.events[0].response_body)
+                match = regex.match(
+                    r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*',
+                    e.events[0].response_body,
+                    flags=regex.V0
+                )
 
                 # this is a throughput failure, attempt to wait up to three times
                 if match and attempts < 3:

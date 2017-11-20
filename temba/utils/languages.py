@@ -1,6 +1,6 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
-import re
+import regex
 import iso639
 
 from iso639 import NonExistentLanguageError
@@ -22,7 +22,7 @@ def get_language_name(iso_code):
             return None
 
         # we only show up to the first semi or paren
-        lang = re.split(';|\(', lang)[0].strip()
+        lang = regex.split(';|\(', lang, flags=regex.V0)[0].strip()
         iso_codes[iso_code] = lang
 
     return iso_codes[iso_code]

@@ -2709,7 +2709,7 @@ class FlowRun(models.Model):
                          (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
                          (EXIT_TYPE_EXPIRED, _("Expired")))
 
-    INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]')
+    INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]', flags=regex.V0)
 
     RESULT_NAME = 'name'
     RESULT_NODE_UUID = 'node_uuid'

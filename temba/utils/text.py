@@ -1,7 +1,6 @@
 from __future__ import print_function, unicode_literals
 
 import random
-import re
 import string
 from collections import Counter
 
@@ -102,7 +101,7 @@ def decode_base64(original):
     if len(stripped) % 4 != 0:
         return original
 
-    p = re.compile(r'^([a-zA-Z0-9+/=]{4})+$')
+    p = regex.compile(r'^([a-zA-Z0-9+/=]{4})+$', flags=regex.V0)
     if not p.match(stripped[:-4]):
         return original
 

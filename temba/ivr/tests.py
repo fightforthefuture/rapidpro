@@ -3,7 +3,7 @@ from __future__ import print_function, unicode_literals
 import json
 import nexmo
 import os
-import re
+import regex
 
 from datetime import timedelta
 from django.conf import settings
@@ -1235,7 +1235,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), post_data)
 
         # grab the redirect URL
-        redirect_url = re.match(r'.*<Redirect>(.*)</Redirect>.*', response.content).group(1)
+        redirect_url = regex.match(r'.*<Redirect>(.*)</Redirect>.*', response.content, flags=regex.V0).group(1)
 
         # get just the path and hit it
         response = self.client.post(urlparse(redirect_url).path, post_data)
@@ -1266,7 +1266,7 @@ class IVRTests(FlowFileTest):
                                     json.dumps(post_data), content_type="application/json")
 
         # grab the redirect URL
-        redirect_url = re.match(r'.*"eventUrl": \["(.*)"\].*', response.content).group(1)
+        redirect_url = regex.match(r'.*"eventUrl": \["(.*)"\].*', response.content, flags=regex.V0).group(1)
 
         # get just the path and hit it
         response = self.client.post("%s?%s" % (urlparse(redirect_url).path, urlparse(redirect_url).query),

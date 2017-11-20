@@ -230,7 +230,10 @@ class TembaTest(SmartminTest):
         cursor.execute('explain %s' % query)
         plan = cursor.fetchall()
         indexes = []
-        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL):
+        finditer = regex.finditer(
+            'Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL | regex.V0
+        )
+        for match in finditer:
             index = match.group(1).strip()
             table = match.group(2).strip()
             indexes.append((table, index))

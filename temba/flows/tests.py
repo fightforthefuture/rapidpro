@@ -6,7 +6,7 @@ import datetime
 import json
 import os
 import pytz
-import re
+import regex
 import six
 import time
 
@@ -4674,7 +4674,7 @@ class FlowsTest(FlowFileTest):
         self.assertContains(response, 'Turbo King')
         self.assertNotContains(response, 'skol')
 
-        next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
+        next_link = regex.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content, flags=regex.V0).group(1)
         response = self.client.get(next_link)
         self.assertEqual(200, response.status_code)
 

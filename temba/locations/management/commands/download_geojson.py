@@ -47,7 +47,10 @@ class Command(BaseCommand):
 
         for relation_id in relation_ids:
             relation_files = filter(
-                lambda obj: regex.match(r'R%s.*_simplified.json' % (relation_id,), obj['path']), files['tree'])
+                lambda obj: regex.match(
+                    r'R%s.*_simplified.json' % (relation_id,), obj['path'], flags=regex.V0
+                ), files['tree']
+            )
             for relation_file in relation_files:
                 destination = os.path.join(destination_dir, relation_file['path'])
                 with open(destination, 'w') as fp:
