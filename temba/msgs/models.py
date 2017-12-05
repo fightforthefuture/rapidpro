@@ -232,7 +232,7 @@ class Broadcast(models.Model):
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
     @classmethod
-    def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
+    def create(cls, org, user_id, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
         # for convenience broadcasts can still be created with single translation and no base_language
         if isinstance(text, six.string_types):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
@@ -245,7 +245,7 @@ class Broadcast(models.Model):
 
         broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
                                        base_language=base_language, text=text, media=media,
-                                       created_by=user, modified_by=user, **kwargs)
+                                       created_by_id=user_id, modified_by_id=user_id, **kwargs)
         broadcast.update_recipients(recipients)
         return broadcast
 
@@ -315,7 +315,7 @@ class Broadcast(models.Model):
 
     def fire(self):
         recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
-        broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
+        broadcast = Broadcast.create(self.org, self.created_by_id, self.text, recipients,
                                      media=self.media, base_language=self.base_language,
                                      parent=self)
 
@@ -431,11 +431,9 @@ class Broadcast(models.Model):
         if not created_on:
             created_on = timezone.now()
 
-        # pre-fetch channels to reduce database hits
-        org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
-
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
+            contact.org = self.org
 
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
@@ -469,8 +467,8 @@ class Broadcast(models.Model):
                             message_context.update(dict(parent=run.parent.build_expressions_context()))
 
             try:
-                msg = Msg.create_outgoing(org,
-                                          self.created_by,
+                msg = Msg.create_outgoing(self.org,
+                                          self.created_by_id,
                                           recipient,
                                           text,
                                           broadcast=self,
@@ -1376,11 +1374,11 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
-    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
+    def create_outgoing(cls, org, user_id, recipient, text, broadcast=None, channel=None, high_priority=False,
                         created_on=None, response_to=None, expressions_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None):
 
-        if not org or not user:  # pragma: no cover
+        if not org or not user_id:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # for IVR messages we need a channel that can call
@@ -1393,7 +1391,7 @@ class Msg(models.Model):
 
         if status != SENT:
             # if message will be sent, resolve the recipient to a contact and URN
-            contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
+            contact, contact_urn = cls.resolve_recipient(org, user_id, recipient, channel, role=role)
 
             if not contact_urn:
                 raise UnreachableException("No suitable URN found for contact")
@@ -1507,7 +1505,7 @@ class Msg(models.Model):
         return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
-    def resolve_recipient(org, user, recipient, channel, role=Channel.ROLE_SEND):
+    def resolve_recipient(org, user_id, recipient, channel, role=Channel.ROLE_SEND):
         """
         Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
         contact URN to use for an outgoing message.
@@ -1531,7 +1529,7 @@ class Msg(models.Model):
         elif isinstance(recipient, six.string_types):
             scheme, path, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
-                contact = Contact.get_or_create(org, user, urns=[recipient])
+                contact = Contact.get_or_create(org, user_id, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
         else:  # pragma: no cover
             raise ValueError("Message recipient must be a Contact, ContactURN or URN tuple")

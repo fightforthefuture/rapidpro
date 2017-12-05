@@ -186,7 +186,7 @@ class ContactGroupTest(TembaTest):
         self.mary = Contact.get_or_create(self.org, self.admin, name="Mary Mo", urns=["tel:345"])
 
     def test_create_static(self):
-        group = ContactGroup.create_static(self.org, self.admin, " group one ")
+        group = ContactGroup.create_static(self.org, self.admin.id, " group one ")
 
         self.assertEqual(group.org, self.org)
         self.assertEqual(group.name, "group one")
@@ -196,7 +196,7 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(ValueError, group.update_query, "gender=M")
 
         # exception if group name is blank
-        self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
+        self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin.id, "   ")
 
     def test_create_dynamic(self):
         age = ContactField.get_or_create(self.org, self.admin, 'age', value_type=Value.TYPE_DECIMAL)
@@ -207,7 +207,7 @@ class ContactGroupTest(TembaTest):
         self.mary.set_field(self.admin, 'gender', "female")
 
         group = ContactGroup.create_dynamic(
-            self.org, self.admin, "Group two",
+            self.org, self.admin.id, "Group two",
             '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
         )
 
@@ -224,13 +224,13 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.mary})
 
         # can't create a dynamic group with empty query
-        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
+        self.assertRaises(ValueError, ContactGroup.create_dynamic.id, self.org, self.admin, "Empty", "")
 
         # can't create a dynamic group with name attribute
-        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, 'Jose', 'name = "Jose"')
+        self.assertRaises(ValueError, ContactGroup.create_dynamic.id, self.org, self.admin, 'Jose', 'name = "Jose"')
 
         # can't create a dynamic group with id attribute
-        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, 'Bose', 'id = 123')
+        self.assertRaises(ValueError, ContactGroup.create_dynamic.id, self.org, self.admin, 'Bose', 'id = 123')
 
         # can't call update_contacts on a dynamic group
         self.assertRaises(ValueError, group.update_contacts, self.admin, [self.joe], True)
@@ -257,9 +257,9 @@ class ContactGroupTest(TembaTest):
 
     def test_get_user_groups(self):
         self.create_field('gender', "Gender")
-        static = ContactGroup.create_static(self.org, self.admin, "Static")
-        dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
-        deleted = ContactGroup.create_static(self.org, self.admin, "Deleted")
+        static = ContactGroup.create_static(self.org, self.admin.id, "Static")
+        dynamic = ContactGroup.create_dynamic(self.org, self.admin.id, "Dynamic", "gender=M")
+        deleted = ContactGroup.create_static(self.org, self.admin.id, "Deleted")
         deleted.is_active = False
         deleted.save()
 
@@ -503,7 +503,7 @@ class ContactGroupCRUDLTest(TembaTest):
         ContactGroup.user_groups.all().delete()
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
-            ContactGroup.create_static(self.org2, self.admin2, 'group%d' % i)
+            ContactGroup.create_static(self.org2, self.admin2.id, 'group%d' % i)
 
         response = self.client.post(url, dict(name="People"))
         self.assertNoFormErrors(response)
@@ -512,7 +512,7 @@ class ContactGroupCRUDLTest(TembaTest):
         ContactGroup.user_groups.all().delete()
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
-            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+            ContactGroup.create_static(self.org, self.admin.id, 'group%d' % i)
 
         self.assertEqual(ContactGroup.user_groups.all().count(), ContactGroup.MAX_ORG_CONTACTGROUPS)
         response = self.client.post(url, dict(name="People"))
@@ -1834,7 +1834,7 @@ class ContactTest(TembaTest):
         self.assertEqual(history_class(item), 'msg warning')
 
         # simulate a broadcast to 5 people
-        msg.broadcast = Broadcast.create(self.org, self.admin, 'Test message', [])
+        msg.broadcast = Broadcast.create(self.org, self.admin.id, 'Test message', [])
         msg.broadcast.recipient_count = 5
         msg.status = 'F'
         self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
@@ -1868,7 +1868,7 @@ class ContactTest(TembaTest):
 
         self.assertFalse(self.joe.get_scheduled_messages())
 
-        broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
+        broadcast = Broadcast.create(self.org, self.admin.id, "Hello", [])
 
         self.assertFalse(self.joe.get_scheduled_messages())
 
@@ -1983,7 +1983,7 @@ class ContactTest(TembaTest):
         self.assertGreater(upcoming[4]['scheduled'], upcoming[5]['scheduled'])
 
         # add a scheduled broadcast
-        broadcast = Broadcast.create(self.org, self.admin, "Hello", [])
+        broadcast = Broadcast.create(self.org, self.admin.id, "Hello", [])
         broadcast.contacts.add(self.joe)
         schedule_time = now + timedelta(days=5)
         broadcast.schedule = Schedule.create_schedule(schedule_time, 'O', self.admin)
@@ -3220,7 +3220,7 @@ class ContactTest(TembaTest):
                              '"Jiochat", "Fcm", "Whatsapp" or "Contact UUID" should be included.')
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
-            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+            ContactGroup.create_static(self.org, self.admin.id, 'group%d' % i)
 
         csv_file = open('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)

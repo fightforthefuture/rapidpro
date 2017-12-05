@@ -91,11 +91,11 @@ class Campaign(TembaModel):
 
                 # all else fails, create the objects from scratch
                 if not group:
-                    group = ContactGroup.create_static(org, user, campaign_spec['group']['name'])
+                    group = ContactGroup.create_static(org, user.id, campaign_spec['group']['name'])
 
                 if not campaign:
                     campaign_name = Campaign.get_unique_name(org, name)
-                    campaign = Campaign.create(org, user, campaign_name, group)
+                    campaign = Campaign.create(org, user.id, campaign_name, group)
                 else:
                     campaign.group = group
                     campaign.save()
@@ -566,11 +566,10 @@ class EventFire(Model):
         groups = [g.id for g in contact.cached_user_groups]
 
         # for each campaign that might effect us
-        for campaign in Campaign.objects.filter(group__in=groups, org=contact.org,
-                                                is_active=True, is_archived=False).distinct():
-
-            # update all the events for the campaign
-            EventFire.update_campaign_events_for_contact(campaign, contact)
+        for campaign in contact.org.cached_campaigns:
+            if campaign.group_id in groups:
+                # update all the events for the campaign
+                EventFire.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
     def update_events_for_contact_field(cls, contact, key):

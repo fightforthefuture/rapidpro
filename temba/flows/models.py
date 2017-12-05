@@ -456,9 +456,11 @@ class Flow(TembaModel):
             return None
 
         if destination_type == FlowStep.TYPE_RULE_SET:
-            return RuleSet.get(flow, uuid)
+            node = RuleSet.get(flow, uuid)
         else:
-            return ActionSet.get(flow, uuid)
+            node = ActionSet.get(flow, uuid)
+        node.flow = flow
+        return node
 
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
@@ -701,7 +703,7 @@ class Flow(TembaModel):
                     if not result.get('interrupted') and \
                             Flow.should_close_connection(run, destination, result.get('destination')):
 
-                        end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
+                        end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org).id, msg.contact, '',
                                                           channel=msg.channel,
                                                           connection=msg.connection, response_to=msg if msg.id else None)
 
@@ -1290,7 +1292,7 @@ class Flow(TembaModel):
 
         # If we still don't know our channel and have a contact, derive the right channel to use
         if not channel_context and contact:
-            _contact, contact_urn = Msg.resolve_recipient(self.org, self.created_by, contact, None)
+            _contact, contact_urn = Msg.resolve_recipient(self.org, self.created_by_id, contact, None)
 
             # only populate channel if this contact can actually be reached (ie, has a URN)
             if contact_urn:
@@ -1298,7 +1300,7 @@ class Flow(TembaModel):
                 if channel:
                     channel_context = channel.build_expressions_context()
 
-        if not run:
+        if not run and contact:
             run = self.runs.filter(contact=contact).order_by('-created_on').first()
 
         if run:
@@ -1589,7 +1591,7 @@ class Flow(TembaModel):
                 # check that we either have text or media, available for the base language
                 if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-                    broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
+                    broadcast = Broadcast.create(self.org, self.created_by_id, send_action.msg, [],
                                                  media=send_action.media,
                                                  base_language=self.base_language,
                                                  send_all=send_action.send_all)
@@ -1633,10 +1635,10 @@ class Flow(TembaModel):
     def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
 
-        simulation = False
-        if len(batch_contact_ids) == 1:
-            if Contact.objects.filter(pk=batch_contact_ids[0], org_id=self.org_id, is_test=True).first():
-                simulation = True
+        batch_contacts = Contact.objects.filter(org=self.org, pk__in=batch_contact_ids)
+        Contact.bulk_cache_initialize(self.org, batch_contacts)
+
+        simulation = len(batch_contacts) == 1 and batch_contacts[0].is_test
 
         # these fields are the initial state for our flow run
         run_fields = None
@@ -1649,16 +1651,17 @@ class Flow(TembaModel):
         batch = []
         now = timezone.now()
 
-        for contact_id in batch_contact_ids:
-            run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
+        for contact in batch_contacts:
+            contact.org = self.org
+            run = FlowRun.create(self, contact.id, fields=run_fields, start=flow_start, created_on=now,
                                  parent=parent_run, db_insert=False, responded=start_msg is not None)
-
+            run.contact = contact
             batch.append(run)
-        FlowRun.objects.bulk_create(batch)
+        runs = FlowRun.objects.bulk_create(batch)
 
         # build a map of contact to flow run
         run_map = dict()
-        for run in FlowRun.objects.filter(contact__in=batch_contact_ids, flow=self, created_on=now).select_related('contact'):
+        for run in runs:
             run.flow = self
             run.org = self.org
 
@@ -1671,8 +1674,7 @@ class Flow(TembaModel):
 
         # if we have more than one run, update the others to the same expiration
         if len(run_map) > 1:
-            FlowRun.objects.filter(contact__in=batch_contact_ids, created_on=now).update(expires_on=run.expires_on,
-                                                                                         modified_on=timezone.now())
+            FlowRun.objects.filter(id__in=[r.id for r in runs]).update(expires_on=run.expires_on, modified_on=timezone.now())
 
         # if we have some broadcasts to optimize for
         message_map = dict()
@@ -1684,8 +1686,10 @@ class Flow(TembaModel):
 
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
+                broadcast.org = self.org
+
                 # provide the broadcast with a partial recipient list
-                partial_recipients = list(), Contact.objects.filter(org=self.org, pk__in=batch_contact_ids)
+                partial_recipients = list(), batch_contacts
 
                 # create the sms messages
                 created_on = timezone.now()
@@ -1694,7 +1698,8 @@ class Flow(TembaModel):
                                created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
+                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on).select_related('channel',):
+                    msg.broadcast = broadcast
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:  # pragma: needs cover
@@ -1703,7 +1708,7 @@ class Flow(TembaModel):
         # now execute our actual flow steps
         (entry_actions, entry_rules) = (None, None)
         if self.entry_type == Flow.ACTIONS_ENTRY:
-            entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
+            entry_actions = self.cached_entry_actionset
             if entry_actions:
                 entry_actions.flow = self
 
@@ -1716,12 +1721,12 @@ class Flow(TembaModel):
         msgs = []
         optimize_sending_action = len(broadcasts) > 0
 
-        for contact_id in batch_contact_ids:
+        for contact in batch_contacts:
             # each contact maintains its own list of started flows
             started_flows_by_contact = list(started_flows)
 
-            run = run_map[contact_id]
-            run_msgs = message_map.get(contact_id, [])
+            run = run_map[contact.id]
+            run_msgs = message_map.get(contact.id, [])
             arrived_on = timezone.now()
 
             try:
@@ -1739,7 +1744,7 @@ class Flow(TembaModel):
 
                         next_step = self.add_step(run, destination, previous_step=step, exit_uuid=entry_actions.exit_uuid)
 
-                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        msg = Msg(org=self.org, contact=contact, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
                                                                      is_test_contact=simulation, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
@@ -1757,7 +1762,7 @@ class Flow(TembaModel):
                     # if we didn't get an incoming message, see if we need to evaluate it passively
                     elif not entry_rules.is_pause():
                         # create an empty placeholder message
-                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        msg = Msg(org=self.org, contact=contact, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
@@ -1773,7 +1778,7 @@ class Flow(TembaModel):
                     msgs.append(msg)
 
             except Exception:
-                logger.error('Failed starting flow %d for contact %d' % (self.id, contact_id), exc_info=1, extra={'stack': True})
+                logger.error('Failed starting flow %d for contact %d' % (self.id, contact.id), exc_info=1, extra={'stack': True})
 
                 # mark this flow as interrupted
                 run.set_interrupted()
@@ -1849,6 +1854,10 @@ class Flow(TembaModel):
 
         return step
 
+    @cached_property
+    def cached_entry_actionset(self):
+        return ActionSet.objects.filter(uuid=self.entry_uuid).first()
+
     def get_entry_send_actions(self):
         """
         Returns all the entry actions (the first actions in a flow) that are reply actions. This is used
@@ -1858,7 +1867,7 @@ class Flow(TembaModel):
             return []
 
         # get our entry actions
-        entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
+        entry_actions = self.cached_entry_actionset
         send_actions = []
 
         if entry_actions:
@@ -3022,7 +3031,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if recording_url:
             attachments = ['%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)]
 
-        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.connection.channel,
+        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by_id, self.contact, text, channel=self.connection.channel,
                                   response_to=response_to, attachments=attachments,
                                   status=DELIVERED, msg_type=IVR, connection=connection)
 
@@ -3300,7 +3309,7 @@ class FlowStep(models.Model):
         self.messages.add(msg)
 
         # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
-        if msg.broadcast:
+        if msg.broadcast_id:
             self.broadcasts.add(msg.broadcast)
 
         # incoming non-IVR messages won't have a type yet so update that
@@ -3425,7 +3434,7 @@ class RuleSet(models.Model):
 
     @classmethod
     def get(cls, flow, uuid):
-        return RuleSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
+        return RuleSet.objects.filter(flow=flow, uuid=uuid).first()
 
     @property
     def is_messaging(self):
@@ -5151,7 +5160,7 @@ class AddToGroupAction(Action):
                 group_uuid = g.get('uuid', None)
                 group_name = g.get('name')
 
-                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_uuid)
+                group = ContactGroup.get_or_create(org, org.created_by_id, group_name, group_uuid)
                 groups.append(group)
             else:
                 if g and g[0] == '@':
@@ -5161,7 +5170,7 @@ class AddToGroupAction(Action):
                     if group:
                         groups.append(group)
                     else:
-                        groups.append(ContactGroup.create_static(org, org.get_user(), g))
+                        groups.append(ContactGroup.create_static(org, org.get_user().id, g))
         return groups
 
     def as_json(self):
@@ -5612,7 +5621,7 @@ class VariableContactAction(Action):
             if not group_name:
                 group_name = 'Missing'
 
-            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_uuid)
+            group = ContactGroup.get_or_create(org, org.get_user().id, group_name, group_uuid)
             groups.append(group)
 
         return groups
@@ -6092,7 +6101,7 @@ class SendAction(VariableContactAction):
 
                 recipients = groups + contacts
 
-                broadcast = Broadcast.create(flow.org, flow.modified_by, self.msg, recipients,
+                broadcast = Broadcast.create(flow.org, flow.modified_by_id, self.msg, recipients,
                                              media=self.media, base_language=flow.base_language)
                 broadcast.send(trigger_send=False, expressions_context=context)
                 return list(broadcast.get_messages())

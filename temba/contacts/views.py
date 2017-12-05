@@ -1194,9 +1194,9 @@ class ContactGroupCRUDL(SmartCRUDL):
             preselected_contacts = self.form.cleaned_data.get('preselected_contacts')
 
             if query:
-                self.object = ContactGroup.create_dynamic(org, user, name, query)
+                self.object = ContactGroup.create_dynamic(org, user.id, name, query)
             else:
-                self.object = ContactGroup.create_static(org, user, name)
+                self.object = ContactGroup.create_static(org, user.id, name)
 
                 if preselected_contacts:
                     preselected_ids = [int(c_id) for c_id in preselected_contacts.split(',') if c_id.isdigit()]

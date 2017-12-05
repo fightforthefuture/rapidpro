@@ -33,6 +33,7 @@ from temba.orgs.models import Language, get_current_export_version
 from temba.tests import TembaTest, MockResponse, FlowFileTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str
+from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
 
 from .flow_migrations import (
@@ -3478,7 +3479,7 @@ class ActionTest(TembaTest):
         self.assertIsNone(ContactGroup.user_groups.filter(name=self.contact.name).first())
 
         # should match existing group for variables
-        replace_group1 = ContactGroup.create_static(self.org, self.admin, self.contact.name)
+        replace_group1 = ContactGroup.create_static(self.org, self.admin.id, self.contact.name)
         self.assertEqual(set(replace_group1.contacts.all()), set())
 
         # passing through twice doesn't change anything
@@ -3497,7 +3498,7 @@ class ActionTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.contact})
         self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
 
-        replace_group2 = ContactGroup.create_static(self.org, self.admin, test_contact.name)
+        replace_group2 = ContactGroup.create_static(self.org, self.admin.id, test_contact.name)
 
         # with test contact, action logs are also created
         self.execute_action(action, test_run, test_msg)
@@ -3535,6 +3536,7 @@ class ActionTest(TembaTest):
         action = DeleteFromGroupAction(str(uuid4()), [group])
         group.is_active = False
         group.save()
+        self.org.clear_cached_groups()
 
         self.assertIn(group, action.groups)
 
@@ -6332,7 +6334,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(1, len(runs))
         self.assertEqual(self.contact.msgs.get().text, 'You are not in the enrolled group.')
 
-        enrolled_group = ContactGroup.create_static(self.org, self.user, "Enrolled")
+        enrolled_group = ContactGroup.create_static(self.org, self.user.id, "Enrolled")
         enrolled_group.update_contacts(self.user, [self.contact], True)
 
         runs_started = flow.start_msg_flow([self.contact.id])
@@ -7638,21 +7640,12 @@ class TriggerStartTest(FlowFileTest):
 
 class FlowBatchTest(FlowFileTest):
 
-    def setUp(self):
-        super(FlowBatchTest, self).setUp()
-        from temba.flows import models as flow_models
-        self.orig_batch_size = flow_models.START_FLOW_BATCH_SIZE
-        flow_models.START_FLOW_BATCH_SIZE = 10
-
-    def tearDown(self):
-        super(FlowBatchTest, self).tearDown()
-        from temba.flows import models as flow_models
-        flow_models.START_FLOW_BATCH_SIZE = self.orig_batch_size
-
+    @patch('temba.flows.models.START_FLOW_BATCH_SIZE', 10)
     def test_flow_batch_start(self):
         """
         Tests starting a flow for a group of contacts
         """
+
         flow = self.get_flow('two_in_row')
 
         # create 10 contacts
@@ -7664,8 +7657,9 @@ class FlowBatchTest(FlowFileTest):
         stopped = contacts[10]
         stopped.stop(self.admin)
 
-        # start our flow, this will take two batches
-        flow.start([], contacts)
+        with QueryTracker(assert_query_count=277, stack_count=10, skip_unique_queries=True):
+            # start our flow, this will take two batches
+            flow.start([], contacts)
 
         # ensure 11 flow runs were created
         self.assertEqual(11, FlowRun.objects.all().count())

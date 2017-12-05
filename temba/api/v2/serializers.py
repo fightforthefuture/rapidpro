@@ -137,7 +137,7 @@ class BroadcastWriteSerializer(WriteSerializer):
         text, base_language = self.validated_data['text']
 
         # create the broadcast
-        broadcast = Broadcast.create(self.context['org'], self.context['user'],
+        broadcast = Broadcast.create(self.context['org'], self.context['user'].id,
                                      text=text,
                                      base_language=base_language,
                                      recipients=recipients,

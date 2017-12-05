@@ -45,6 +45,8 @@ class Value(models.Model):
 
     TYPE_CHOICES = [(c[0], c[1]) for c in TYPE_CONFIG]
 
+    LOCATION_TYPES = (TYPE_STATE, TYPE_DISTRICT, TYPE_WARD)
+
     GPS = 'G'
     AUDIO = 'A'
     VIDEO = 'V'

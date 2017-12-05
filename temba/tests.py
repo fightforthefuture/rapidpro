@@ -357,9 +357,9 @@ class TembaTest(SmartminTest):
             raise ValueError("Can't provide contact list for a dynamic group")
 
         if query:
-            return ContactGroup.create_dynamic(self.org, self.user, name, query=query)
+            return ContactGroup.create_dynamic(self.org, self.user.id, name, query=query)
         else:
-            group = ContactGroup.create_static(self.org, self.user, name)
+            group = ContactGroup.create_static(self.org, self.user.id, name)
             if contacts:
                 group.contacts.add(*contacts)
             return group

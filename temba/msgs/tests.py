@@ -49,9 +49,9 @@ class MsgTest(TembaTest):
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
     def test_get_sync_commands(self):
-        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
-        msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
-        msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
+        msg1 = Msg.create_outgoing(self.org, self.admin.id, self.joe, "Hello, we heard from you.")
+        msg2 = Msg.create_outgoing(self.org, self.admin.id, self.frank, "Hello, we heard from you.")
+        msg3 = Msg.create_outgoing(self.org, self.admin.id, self.kevin, "Hello, we heard from you.")
 
         commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg3.id)))
 
@@ -63,7 +63,7 @@ class MsgTest(TembaTest):
             ], 'msg': "Hello, we heard from you."}
         ])
 
-        msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
+        msg4 = Msg.create_outgoing(self.org, self.admin.id, self.kevin, "Hello, there")
 
         commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg4.id)))
 
@@ -74,7 +74,7 @@ class MsgTest(TembaTest):
             {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"}
         ])
 
-        msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
+        msg5 = Msg.create_outgoing(self.org, self.admin.id, self.frank, "Hello, we heard from you.")
 
         commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg4.id, msg5.id)))
 
@@ -108,12 +108,12 @@ class MsgTest(TembaTest):
         self.assertTrue(Label.label_objects.filter(pk=label.pk).exists())  # though don't delete the label object
 
         # can't archive outgoing messages
-        msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
+        msg2 = Msg.create_outgoing(self.org, self.admin.id, self.joe, "Outgoing")
         self.assertRaises(ValueError, msg2.archive)
 
     def assertReleaseCount(self, direction, status, visibility, msg_type, label):
         if direction == OUTGOING:
-            msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Whattup Joe")
+            msg = Msg.create_outgoing(self.org, self.admin.id, self.joe, "Whattup Joe")
         else:
             msg = Msg.create_incoming(self.channel, "tel:+250788123123", "Hey hey")
 
@@ -142,7 +142,7 @@ class MsgTest(TembaTest):
 
     def test_erroring(self):
         # test with real message
-        msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Test 1")
+        msg = Msg.create_outgoing(self.org, self.admin.id, self.joe, "Test 1")
         r = get_redis_connection()
 
         Msg.mark_error(r, self.channel, msg)
@@ -162,7 +162,7 @@ class MsgTest(TembaTest):
         self.assertEqual(msg.status, 'F')
 
         # test with mock message
-        msg = dict_to_struct('MsgStruct', Msg.create_outgoing(self.org, self.admin, self.joe, "Test 2").as_task_json())
+        msg = dict_to_struct('MsgStruct', Msg.create_outgoing(self.org, self.admin.id, self.joe, "Test 2").as_task_json())
 
         Msg.mark_error(r, self.channel, msg)
         msg = Msg.objects.get(pk=msg.id)
@@ -235,47 +235,47 @@ class MsgTest(TembaTest):
         twitter_urn_obj = twitter_contact.urn_objects[twitter_urn]
 
         # check creating by URN string
-        msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Extra spaces to remove    ")
+        msg = Msg.create_outgoing(self.org, self.admin.id, tel_urn, "Extra spaces to remove    ")
         self.assertEqual(msg.contact, tel_contact)
         self.assertEqual(msg.contact_urn, tel_urn_obj)
         self.assertEqual(msg.text, "Extra spaces to remove")  # check message text is stripped
 
         # check creating by URN string and specific channel
-        msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Hello 1", channel=self.channel)
+        msg = Msg.create_outgoing(self.org, self.admin.id, tel_urn, "Hello 1", channel=self.channel)
         self.assertEqual(msg.contact, tel_contact)
         self.assertEqual(msg.contact_urn, tel_urn_obj)
 
         # try creating by URN string and specific channel with different scheme
         with self.assertRaises(UnreachableException):
-            Msg.create_outgoing(self.org, self.admin, twitter_urn, "Hello 1", channel=self.channel)
+            Msg.create_outgoing(self.org, self.admin.id, twitter_urn, "Hello 1", channel=self.channel)
 
         # check creating by URN object
-        msg = Msg.create_outgoing(self.org, self.admin, tel_urn_obj, "Hello 1")
+        msg = Msg.create_outgoing(self.org, self.admin.id, tel_urn_obj, "Hello 1")
         self.assertEqual(msg.contact, tel_contact)
         self.assertEqual(msg.contact_urn, tel_urn_obj)
 
         # check creating by URN object and specific channel
-        msg = Msg.create_outgoing(self.org, self.admin, tel_urn_obj, "Hello 1", channel=self.channel)
+        msg = Msg.create_outgoing(self.org, self.admin.id, tel_urn_obj, "Hello 1", channel=self.channel)
         self.assertEqual(msg.contact, tel_contact)
         self.assertEqual(msg.contact_urn, tel_urn_obj)
 
         # try creating by URN object and specific channel with different scheme
         with self.assertRaises(UnreachableException):
-            Msg.create_outgoing(self.org, self.admin, twitter_urn_obj, "Hello 1", channel=self.channel)
+            Msg.create_outgoing(self.org, self.admin.id, twitter_urn_obj, "Hello 1", channel=self.channel)
 
         # check creating by contact
-        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1")
+        msg = Msg.create_outgoing(self.org, self.admin.id, tel_contact, "Hello 1")
         self.assertEqual(msg.contact, tel_contact)
         self.assertEqual(msg.contact_urn, tel_urn_obj)
 
         # check creating by contact and specific channel
-        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1", channel=self.channel)
+        msg = Msg.create_outgoing(self.org, self.admin.id, tel_contact, "Hello 1", channel=self.channel)
         self.assertEqual(msg.contact, tel_contact)
         self.assertEqual(msg.contact_urn, tel_urn_obj)
 
         # try creating by contact and specific channel with different scheme
         with self.assertRaises(UnreachableException):
-            Msg.create_outgoing(self.org, self.admin, twitter_contact, "Hello 1", channel=self.channel)
+            Msg.create_outgoing(self.org, self.admin.id, twitter_contact, "Hello 1", channel=self.channel)
 
         # Can't handle outgoing messages
         with self.assertRaises(ValueError):
@@ -283,7 +283,7 @@ class MsgTest(TembaTest):
 
         # can't create outgoing messages without org or user
         with self.assertRaises(ValueError):
-            Msg.create_outgoing(None, self.admin, "tel:250783835665", "Hello World")
+            Msg.create_outgoing(None, self.admin.id, "tel:250783835665", "Hello World")
         with self.assertRaises(ValueError):
             Msg.create_outgoing(self.org, None, "tel:250783835665", "Hello World")
 
@@ -291,10 +291,10 @@ class MsgTest(TembaTest):
         # cannot sent more than 10 same message in period of 5 minutes
 
         for number in range(0, 10):
-            Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, 'Infinite Loop')
+            Msg.create_outgoing(self.org, self.admin.id, "tel:" + self.channel.address, 'Infinite Loop')
 
         # now that we have 10 same messages then,
-        must_return_none = Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, 'Infinite Loop')
+        must_return_none = Msg.create_outgoing(self.org, self.admin.id, "tel:" + self.channel.address, 'Infinite Loop')
         self.assertIsNone(must_return_none)
 
     def test_create_incoming(self):
@@ -333,7 +333,7 @@ class MsgTest(TembaTest):
         self.assertEqual(msg5.text, "Don't be null!")
 
     def test_empty(self):
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
+        broadcast = Broadcast.create(self.org, self.admin.id, "If a broadcast is sent and nobody receives it, does it still send?", [])
         broadcast.send(True)
 
         # should have no messages but marked as sent
@@ -343,7 +343,7 @@ class MsgTest(TembaTest):
     def test_send_all(self):
         contact = self.create_contact('Stephen', '+12078778899')
         ContactURN.get_or_create(self.org, contact, 'tel:+12078778800')
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact], send_all=True)
+        broadcast = Broadcast.create(self.org, self.admin.id, "If a broadcast is sent and nobody receives it, does it still send?", [contact], send_all=True)
         partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
         broadcast.send(True, partial_recipients=partial_recipients)
 
@@ -353,7 +353,7 @@ class MsgTest(TembaTest):
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
 
         # should not create a broadcast recipient if a similar one exists
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact], send_all=True)
+        broadcast = Broadcast.create(self.org, self.admin.id, "If a broadcast is sent and nobody receives it, does it still send?", [contact], send_all=True)
         BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact.id)
 
         partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
@@ -365,7 +365,7 @@ class MsgTest(TembaTest):
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
 
     def test_update_contacts(self):
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
+        broadcast = Broadcast.create(self.org, self.admin.id, "If a broadcast is sent and nobody receives it, does it still send?", [])
 
         # update the contacts using contact ids
         broadcast.update_contacts([self.joe.id])
@@ -383,7 +383,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         contact = Contact.get_or_create(self.channel.org, self.admin, name=None, urns=['tel:250788382382'])
-        broadcast1 = Broadcast.create(self.channel.org, self.admin, 'How is it going?', [contact])
+        broadcast1 = Broadcast.create(self.channel.org, self.admin.id, 'How is it going?', [contact])
 
         # now send the broadcast so we have messages
         broadcast1.send(trigger_send=False)
@@ -395,7 +395,7 @@ class MsgTest(TembaTest):
         self.assertContains(response, "Outbox (1)")
         self.assertEqual(set(response.context_data['object_list']), {msg1})
 
-        broadcast2 = Broadcast.create(self.channel.org, self.admin, 'kLab is an awesome place for @contact.name',
+        broadcast2 = Broadcast.create(self.channel.org, self.admin.id, 'kLab is an awesome place for @contact.name',
                                       [self.kevin, self.joe_and_frank])
 
         # now send the broadcast so we have messages
@@ -629,7 +629,7 @@ class MsgTest(TembaTest):
     def test_failed(self):
         failed_url = reverse('msgs.msg_failed')
 
-        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
+        msg1 = Msg.create_outgoing(self.org, self.admin.id, self.joe, "message number 1")
         msg1.status = 'F'
         msg1.save()
 
@@ -637,7 +637,7 @@ class MsgTest(TembaTest):
         log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
 
         # create broadcast and fail the only message
-        broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe])
+        broadcast = Broadcast.create(self.org, self.admin.id, "message number 2", [self.joe])
         broadcast.send(trigger_send=False)
         broadcast.get_messages().update(status='F')
         broadcast.update()
@@ -646,7 +646,7 @@ class MsgTest(TembaTest):
         self.assertEqual(FAILED, broadcast.status)
 
         # message without a broadcast
-        msg3 = Msg.create_outgoing(self.org, self.admin, self.joe, "messsage number 3")
+        msg3 = Msg.create_outgoing(self.org, self.admin.id, self.joe, "messsage number 3")
         msg3.status = 'F'
         msg3.save()
 
@@ -919,7 +919,7 @@ class BroadcastTest(TembaTest):
         self.twitter = Channel.create(self.org, self.user, None, 'TT')
 
     def test_broadcast_batch(self):
-        broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin])
+        broadcast = Broadcast.create(self.org, self.user.id, "Like a tweet", [self.joe_and_frank, self.kevin])
         self.assertEqual(3, broadcast.recipient_count)
 
         # change our broadcast size to 2
@@ -944,7 +944,7 @@ class BroadcastTest(TembaTest):
             msg.broadcast.update()
             self.assertEqual(msg.broadcast.status, broadcast_status)
 
-        broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast = Broadcast.create(self.org, self.user.id, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
         self.assertEqual('I', broadcast.status)
         self.assertEqual(4, broadcast.recipient_count)
 
@@ -1126,7 +1126,7 @@ class BroadcastTest(TembaTest):
         recipients = [no_urns, tel_contact, twitter_contact]
 
         # send a broadcast to all (org has a tel and a twitter channel)
-        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
+        broadcast = Broadcast.create(self.org, self.admin.id, "Want to go thrift shopping?", recipients)
         broadcast.send(True)
 
         # should have only messages for Ryan and Lucy
@@ -1135,7 +1135,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(sorted([m.contact.name for m in msgs]), ["Lucy", "Ryan Lewis"])
 
         # send another broadcast to all and force use of the twitter channel
-        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients, channel=self.twitter)
+        broadcast = Broadcast.create(self.org, self.admin.id, "Want to go thrift shopping?", recipients, channel=self.twitter)
         broadcast.send(True)
 
         # should have only one message created to Lucy
@@ -1147,7 +1147,7 @@ class BroadcastTest(TembaTest):
         self.twitter.release(trigger_sync=False)
 
         # send another broadcast to all
-        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
+        broadcast = Broadcast.create(self.org, self.admin.id, "Want to go thrift shopping?", recipients)
         broadcast.send(True)
 
         # should have only one message created to Ryan
@@ -1329,7 +1329,7 @@ class BroadcastTest(TembaTest):
         self.joe.set_field(self.user, "team", "Amavubi")
         self.kevin.set_field(self.user, "team", "Junior")
 
-        broadcast1 = Broadcast.create(self.org, self.user,
+        broadcast1 = Broadcast.create(self.org, self.user.id,
                                       "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
                                       [self.joe_and_frank, self.kevin])
         broadcast1.send(trigger_send=False, expressions_context={})
@@ -1342,7 +1342,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(self.kevin.msgs.get(broadcast=broadcast1).text, 'Hi Kevin Durant, You live in Kanombe and your team is Junior.')
 
         # if we don't provide a context then substitution isn't performed
-        broadcast2 = Broadcast.create(self.org, self.user, "Hi @contact.name on @channel", [self.joe_and_frank, self.kevin])
+        broadcast2 = Broadcast.create(self.org, self.user.id, "Hi @contact.name on @channel", [self.joe_and_frank, self.kevin])
         broadcast2.send(trigger_send=False)
 
         self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
@@ -1363,31 +1363,31 @@ class BroadcastTest(TembaTest):
 
         # create an old broadcast which is a response to an incoming message
         incoming = self.create_msg(contact=self.joe, direction='I', text="Hello")
-        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe], created_on=long_ago)
+        broadcast1 = Broadcast.create(self.org, self.user.id, "Noted", [self.joe], created_on=long_ago)
         broadcast1.send(trigger_send=False, response_to=incoming)
 
         # create an old broadcast which is to several contacts
-        broadcast2 = Broadcast.create(self.org, self.user, "Very old broadcast",
+        broadcast2 = Broadcast.create(self.org, self.user.id, "Very old broadcast",
                                       [self.joe_and_frank, self.kevin, self.lucy], created_on=long_ago)
         broadcast2.send(trigger_send=False)
 
         # print(repr([{'name': m.contact.name, 'status': m.status} for m in broadcast2.msgs.all()]))
 
         # create a recent broadcast to same contacts
-        broadcast3 = Broadcast.create(self.org, self.user, "New broadcast",
+        broadcast3 = Broadcast.create(self.org, self.user.id, "New broadcast",
                                       [self.joe_and_frank, self.kevin, self.lucy])
         broadcast3.send(trigger_send=False)
 
         # create an old broadcast for the other purgeable org
         Channel.create(self.org2, self.admin2, 'RW', 'A', name="Test Channel 2", address="+250785551313")
         hans = self.create_contact("Hans", "1234567")
-        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for org 2", [hans], created_on=long_ago)
+        broadcast4 = Broadcast.create(self.org2, self.admin2.id, "Old for org 2", [hans], created_on=long_ago)
         broadcast4.send(trigger_send=False)
 
         # and one for the non-purgeable org
         Channel.create(org3, admin3, 'HU', 'A', name="Test Channel 3", address="+250785551314")
         george = self.create_contact("George", "1234568")
-        broadcast5 = Broadcast.create(org3, admin3, "Old for org 3", [george], created_on=long_ago)
+        broadcast5 = Broadcast.create(org3, admin3.id, "Old for org 3", [george], created_on=long_ago)
         broadcast5.send(trigger_send=False)
 
         # mark all outgoing messages as sent except broadcast #2 to Joe
@@ -1442,7 +1442,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(Broadcast.objects.filter(org=org3, purged=True).count(), 0)
 
         # create another old broadcast
-        broadcast5 = Broadcast.create(self.org, self.admin, "Another old broadcast",
+        broadcast5 = Broadcast.create(self.org, self.admin.id, "Another old broadcast",
                                       [self.joe_and_frank, self.kevin, self.lucy],
                                       created_on=timezone.now() - timedelta(days=100))
         broadcast5.send(trigger_send=False)
@@ -1848,7 +1848,7 @@ class ScheduleTest(TembaTest):
         batch_group = self.create_group("Batch Group", contacts)
 
         # create our broadcast
-        broadcast = Broadcast.create(self.org, self.admin, 'Many message but only 5 batches.', [batch_group])
+        broadcast = Broadcast.create(self.org, self.admin.id, 'Many message but only 5 batches.', [batch_group])
 
         self.channel.channel_type = 'EX'
         self.channel.save()
@@ -1977,7 +1977,7 @@ class BroadcastLanguageTest(TembaTest):
         fra_msg = "Ceci est mon message"
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fra=fra_msg),
+        bcast = Broadcast.create(self.org, self.admin.id, dict(eng=eng_msg, fra=fra_msg),
                                  [self.francois, self.greg, self.wilbert], base_language='eng')
 
         bcast.send()
@@ -1995,7 +1995,7 @@ class BroadcastLanguageTest(TembaTest):
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
         bcast = Broadcast.create(
-            self.org, self.admin, dict(eng=eng_msg, fra=fra_msg), [self.francois, self.greg, self.wilbert],
+            self.org, self.admin.id, dict(eng=eng_msg, fra=fra_msg), [self.francois, self.greg, self.wilbert],
             base_language='eng', media=dict(eng=eng_attachment, fra=fra_attachment)
         )
 
@@ -2035,11 +2035,11 @@ class SystemLabelTest(TembaTest):
         msg4 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 4")
         call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), 10)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
-        Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
+        Broadcast.create(self.org, self.user.id, "Broadcast 2", [contact1, contact2],
                          schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
 
         # create a broadcast with a test contact to make sure they aren't included
-        test_bcast = Broadcast.create(self.org, self.user, "Test Broadcast", [Contact.get_test_contact(self.admin)])
+        test_bcast = Broadcast.create(self.org, self.user.id, "Test Broadcast", [Contact.get_test_contact(self.admin)])
 
         # this will create some test outgoing messages as well
         test_bcast.send()
@@ -2053,7 +2053,7 @@ class SystemLabelTest(TembaTest):
         bcast1.send(status=QUEUED)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
         ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), 10)
-        Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
+        Broadcast.create(self.org, self.user.id, "Broadcast 3", [contact1],
                          schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 3, SystemLabel.TYPE_FLOWS: 0,
@@ -2115,7 +2115,7 @@ class TagsTest(TembaTest):
         self.assertTrue(text.find(clazz) >= 0)
 
     def test_as_icon(self):
-        msg = Msg.create_outgoing(self.org, self.admin, "tel:250788382382", "How is it going?")
+        msg = Msg.create_outgoing(self.org, self.admin.id, "tel:250788382382", "How is it going?")
         now = timezone.now()
         two_hours_ago = now - timedelta(hours=2)
 
@@ -2222,7 +2222,7 @@ class CeleryTaskTest(TembaTest):
             self.assert_task_sent('send_msg_task')
 
         with patch('celery.current_app.send_task', new_send_task), patch('temba.msgs.models.push_task', new_push_task), transaction.atomic():
-            msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel2)
+            msg1 = Msg.create_outgoing(self.org, self.user.id, self.joe, "Hello, we heard from you.", channel=self.channel2)
 
             Msg.send_messages([msg1])
 

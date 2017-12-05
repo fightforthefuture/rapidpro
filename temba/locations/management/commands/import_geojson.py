@@ -7,6 +7,8 @@ import regex
 from zipfile import ZipFile
 from django.contrib.gis.geos import Polygon, MultiPolygon
 from django.core.management.base import BaseCommand
+from django.db.models.functions import Concat
+from django.db.models import Value, F
 from temba.locations.models import AdminBoundary
 
 
@@ -125,8 +127,10 @@ class Command(BaseCommand):  # pragma: no cover
         if osm_id:
             last_boundary = AdminBoundary.objects.filter(osm_id=osm_id).first()
             if last_boundary:
+                print(" ** removing unseen boundaries (%s)" % (osm_id))
                 country = last_boundary.get_root()
                 country.get_descendants().filter(level=level).exclude(osm_id__in=seen_osm_ids).delete()
+                return country
 
     def handle(self, *args, **options):
         files = options['files']
@@ -148,6 +152,7 @@ class Command(BaseCommand):  # pragma: no cover
         # before 2
         filepaths.sort()
 
+        country = None
         # for each file they have given us
         for filepath in filepaths:
             filename = os.path.basename(filepath)
@@ -159,9 +164,22 @@ class Command(BaseCommand):  # pragma: no cover
                 # if we are reading from a zipfile, read it from there
                 if zipfile:
                     with zipfile.open(filepath) as json_file:
-                        self.import_file(filename, json_file)
+                        country = self.import_file(filename, json_file)
 
                 # otherwise, straight off the filesystem
                 else:
                     with open(filepath) as json_file:
-                        self.import_file(filename, json_file)
+                        country = self.import_file(filename, json_file)
+
+        if country:
+            country.path = country.name
+            country.save(update_fields=('path',))
+
+            def update_paths(boundary):
+                print(" ** updating path for %s" % boundary.name)
+                boundaries = AdminBoundary.objects.filter(parent=boundary).only('name', 'parent__path')
+                boundaries.update(path=Concat(Value(boundary.path), Value(' > '), F('name')))
+                for boundary in boundaries:
+                    update_paths(boundary)
+
+            update_paths(country)

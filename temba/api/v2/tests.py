@@ -544,12 +544,12 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
-        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", [self.frank.get_urn('twitter')])
-        bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", [self.joe])
-        bcast3 = Broadcast.create(self.org, self.admin, "Hello 3", [self.frank], status='S')
-        bcast4 = Broadcast.create(self.org, self.admin, "Hello 4",
+        bcast1 = Broadcast.create(self.org, self.admin.id, "Hello 1", [self.frank.get_urn('twitter')])
+        bcast2 = Broadcast.create(self.org, self.admin.id, "Hello 2", [self.joe])
+        bcast3 = Broadcast.create(self.org, self.admin.id, "Hello 3", [self.frank], status='S')
+        bcast4 = Broadcast.create(self.org, self.admin.id, "Hello 4",
                                   [self.frank.get_urn('twitter'), self.joe, reporters], status='F')
-        Broadcast.create(self.org2, self.admin2, "Different org...", [self.hans])
+        Broadcast.create(self.org2, self.admin2.id, "Different org...", [self.hans])
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
@@ -1788,7 +1788,7 @@ class APITest(TembaTest):
         ContactGroup.user_groups.all().delete()
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
-            ContactGroup.create_static(self.org2, self.admin2, 'group%d' % i)
+            ContactGroup.create_static(self.org2, self.admin2.id, 'group%d' % i)
 
         response = self.postJSON(url, None, {'name': "Reporters"})
         self.assertEqual(response.status_code, 201)
@@ -1796,7 +1796,7 @@ class APITest(TembaTest):
         ContactGroup.user_groups.all().delete()
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
-            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+            ContactGroup.create_static(self.org, self.admin.id, 'group%d' % i)
 
         response = self.postJSON(url, None, {'name': "Reporters"})
         self.assertResponseError(response, 'non_field_errors',
@@ -2045,7 +2045,7 @@ class APITest(TembaTest):
         self.assertResultsById(response, [joe_msg3, frank_msg1])
 
         # filter by broadcast
-        broadcast = Broadcast.create(self.org, self.user, "A beautiful broadcast", [self.joe, self.frank])
+        broadcast = Broadcast.create(self.org, self.user.id, "A beautiful broadcast", [self.joe, self.frank])
         broadcast.send()
         response = self.fetchJSON(url, 'broadcast=%s' % broadcast.pk)
 
@@ -2399,7 +2399,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'messages', "No such object: %d" % msg2.id)
 
         # try to act on an outgoing message
-        msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
+        msg4 = Msg.create_outgoing(self.org, self.user.id, self.joe, "Hi Joe")
         response = self.postJSON(url, None, {'messages': [msg1.id, msg4.id], 'action': 'archive'})
         self.assertResponseError(response, 'messages', "Not an incoming message: %d" % msg4.id)
 

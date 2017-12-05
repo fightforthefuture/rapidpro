@@ -645,7 +645,10 @@ class Contact(TembaModel):
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
-        value = Value.objects.filter(contact=self, contact_field__key__exact=key).first()
+        value = Value.objects.filter(contact=self, contact_field__key__exact=key).select_related('contact_field__value_type').first()
+        if value.contact_field.value_type in Value.LOCATION_TYPES:
+            value = value.prefetch_related("location_value__path")
+
         self.set_cached_field_value(key, value)
         return value
 
@@ -706,7 +709,7 @@ class Contact(TembaModel):
             is_int = value.decimal_value == as_int
             return six.text_type(as_int) if is_int else six.text_type(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
-            return value.location_value.as_path()
+            return value.location_value.path
         else:
             return value.string_value
 
@@ -1420,7 +1423,7 @@ class Contact(TembaModel):
 
         # group org is same as org of any contact in that group
         group_org = contacts[0].org
-        group = ContactGroup.create_static(group_org, user, group_name, task)
+        group = ContactGroup.create_static(group_org, user.id, group_name, task)
 
         num_creates = 0
         for contact in contacts:
@@ -1615,9 +1618,9 @@ class Contact(TembaModel):
             return
 
         # get our contact fields
-        fields = ContactField.objects.filter(org=org)
+        fields = org.cached_contact_fields
         if for_show_only:
-            fields = fields.filter(show_in_table=True)
+            fields = [f for f in fields if f.show_in_table]
 
         # build id maps to avoid re-fetching contact objects
         key_map = {f.id: f.key for f in fields}
@@ -1926,14 +1929,14 @@ class Contact(TembaModel):
         status = SENT if created_on else PENDING
 
         if all_urns:
-            recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
+            recipients = [((self, u) if status == SENT else u) for u in self.get_urns()]
         else:
             recipients = [(self, None)] if status == SENT else [self]
 
         msgs = []
         for recipient in recipients:
             try:
-                msg = Msg.create_outgoing(self.org, user, recipient, text,
+                msg = Msg.create_outgoing(self.org, user.id, recipient, text,
                                           response_to=response_to, expressions_context=expressions_context, connection=connection,
                                           attachments=attachments, msg_type=msg_type or INBOX, status=status,
                                           created_on=created_on, high_priority=high_priority)
@@ -2223,11 +2226,11 @@ class ContactGroup(TembaModel):
         return groups
 
     @classmethod
-    def get_or_create(cls, org, user, name, group_uuid=None):
+    def get_or_create(cls, org, user_id, name, group_uuid=None):
         existing = None
 
         if group_uuid is not None:
-            existing = ContactGroup.user_groups.filter(org=org, uuid=group_uuid).first()
+            existing = org.get_group_for_uuid(group_uuid)
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)
@@ -2235,17 +2238,17 @@ class ContactGroup(TembaModel):
         if existing:
             return existing
 
-        return cls.create_static(org, user, name)
+        return cls.create_static(org, user_id, name)
 
     @classmethod
-    def create_static(cls, org, user, name, task=None):
+    def create_static(cls, org, user_id, name, task=None):
         """
         Creates a static group whose members will be manually added and removed
         """
-        return cls._create(org, user, name, task=task)
+        return cls._create(org, user_id, name, task=task)
 
     @classmethod
-    def create_dynamic(cls, org, user, name, query):
+    def create_dynamic(cls, org, user_id, name, query):
         """
         Creates a dynamic group with the given query, e.g. gender=M
         """
@@ -2255,12 +2258,12 @@ class ContactGroup(TembaModel):
         # this is in a transaction and if update_query raises ValueError (because the query is invalid)
         # we will rollback the database changes
         with transaction.atomic():
-            group = cls._create(org, user, name, query=query)
+            group = cls._create(org, user_id, name, query=query)
             group.update_query(query=query)
             return group
 
     @classmethod
-    def _create(cls, org, user, name, task=None, query=None):
+    def _create(cls, org, user_id, name, task=None, query=None):
         full_group_name = cls.clean_name(name)
 
         if not cls.is_valid_name(full_group_name):
@@ -2276,7 +2279,7 @@ class ContactGroup(TembaModel):
             count += 1
 
         return cls.user_groups.create(org=org, name=full_group_name, query=query,
-                                      import_task=task, created_by=user, modified_by=user)
+                                      import_task=task, created_by_id=user_id, modified_by_id=user_id)
 
     @classmethod
     def clean_name(cls, name):

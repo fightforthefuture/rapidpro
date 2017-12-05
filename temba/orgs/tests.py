@@ -1826,7 +1826,7 @@ class OrgTest(TembaTest):
         Channel.create(sub_org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
                        device="Nexus 5X", secret="12355", gcm_id="145")
         contact = self.create_contact("Joe", "+250788383444", org=sub_org)
-        msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
+        msg = Msg.create_outgoing(sub_org, self.admin.id, contact, "How is it going?")
         self.assertFalse(msg.topup)
 
         # default values should be the same as parent

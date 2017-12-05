@@ -361,7 +361,7 @@ class Command(BaseCommand):
             user = org.cache['users'][0]
             for g in GROUPS:
                 if g['query']:
-                    group = ContactGroup.create_dynamic(org, user, g['name'], g['query'])
+                    group = ContactGroup.create_dynamic(org, user.id, g['name'], g['query'])
                 else:
                     group = ContactGroup.user_groups.create(org=org, name=g['name'], created_by=user, modified_by=user)
                 group.member = g['member']

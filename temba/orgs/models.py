@@ -1385,6 +1385,7 @@ class Org(SmartModel):
 
             # near the edge, clear out our cache and calculate from the db
             if not remaining or int(remaining) < 100:
+                print(remaining, "clearing credit cache")
                 active_topup_id = None
                 self.clear_credit_cache()
 
@@ -1529,6 +1530,34 @@ class Org(SmartModel):
 
     def get_bundles(self):
         return get_brand_bundles(self.get_branding())
+
+    @cached_property
+    def cached_campaigns(self):
+        from temba.campaigns.models import Campaign
+        return Campaign.objects.filter(org=self, is_active=True, is_archived=False)
+
+    def clear_cached_groups(self):
+        if '__cached_groups' in self.__dict__:
+            del self.__dict__['__cached_groups']
+
+    def get_group_for_uuid(self, uuid):
+
+        if not uuid:
+            return None
+
+        cached_groups = self.__dict__.get('__cached_groups', {})
+        existing = cached_groups.get(uuid, None)
+        if existing:
+            return existing
+
+        from temba.contacts.models import ContactGroup
+        existing = ContactGroup.user_groups.filter(org=self, uuid=uuid).first()
+
+        if existing:
+            cached_groups[uuid] = existing
+            self.__dict__['__cached_groups'] = cached_groups
+
+        return existing
 
     @cached_property
     def cached_contact_fields(self):

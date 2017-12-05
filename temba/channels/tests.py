@@ -92,7 +92,7 @@ class ChannelTest(TembaTest):
 
         group.contacts.add(*contacts)
 
-        broadcast = Broadcast.create(org, user, message, [group])
+        broadcast = Broadcast.create(org, user.id, message, [group])
         broadcast.send()
 
         msg = Msg.objects.filter(broadcast=broadcast).order_by('text', 'pk')
@@ -280,7 +280,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.channel_type = 'EX'
         self.tel_channel.save()
 
-        msg = Msg.create_outgoing(self.org, self.user, 'tel:+250738382382', 'x' * 400)  # 400 chars long
+        msg = Msg.create_outgoing(self.org, self.user.id, 'tel:+250738382382', 'x' * 400)  # 400 chars long
         Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
         self.assertEqual(3, Msg.objects.get(pk=msg.id).msg_count)
 
@@ -289,7 +289,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
         cache.clear()  # clear the channel from cache
 
-        msg = Msg.create_outgoing(self.org, self.user, 'tel:+250738382382', 'y' * 400)
+        msg = Msg.create_outgoing(self.org, self.user.id, 'tel:+250738382382', 'y' * 400)
         Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
         self.assertEqual(self.tel_channel, Msg.objects.get(pk=msg.id).channel)
         self.assertEqual(1, Msg.objects.get(pk=msg.id).msg_count)
@@ -515,21 +515,21 @@ class ChannelTest(TembaTest):
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # add a message, just sent so shouldn't have delayed
-        msg = Msg.create_outgoing(self.org, self.user, 'tel:250788123123', "test")
+        msg = Msg.create_outgoing(self.org, self.user.id, 'tel:250788123123', "test")
         response = self.client.get('/', Follow=True)
         self.assertIn('delayed_syncevents', response.context)
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # but put it in the past
         msg.delete()
-        msg = Msg.create_outgoing(self.org, self.user, 'tel:250788123123', "test",
+        msg = Msg.create_outgoing(self.org, self.user.id, 'tel:250788123123', "test",
                                   created_on=timezone.now() - timedelta(hours=3))
         response = self.client.get('/', Follow=True)
         self.assertIn('delayed_syncevents', response.context)
         self.assertIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # if there is a successfully sent message after sms was created we do not consider it as delayed
-        success_msg = Msg.create_outgoing(self.org, self.user, 'tel:+250788123123', "success-send",
+        success_msg = Msg.create_outgoing(self.org, self.user.id, 'tel:+250788123123', "success-send",
                                           created_on=timezone.now() - timedelta(hours=2))
         success_msg.sent_on = timezone.now() - timedelta(hours=2)
         success_msg.status = 'S'
@@ -757,7 +757,7 @@ class ChannelTest(TembaTest):
             sync.save()
 
         # add a message, just sent so shouldn't be delayed
-        Msg.create_outgoing(self.org, self.user, 'tel:250785551212', 'delayed message', created_on=two_hours_ago)
+        Msg.create_outgoing(self.org, self.user.id, 'tel:250785551212', 'delayed message', created_on=two_hours_ago)
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.admin)
         self.assertIn('delayed_sync_event', response.context_data.keys())
@@ -788,7 +788,7 @@ class ChannelTest(TembaTest):
 
         # send messages with a test contact
         Msg.create_incoming(self.tel_channel, six.text_type(test_contact.get_urn()), 'This incoming message will not be counted')
-        Msg.create_outgoing(self.org, self.user, test_contact, 'This outgoing message will not be counted')
+        Msg.create_outgoing(self.org, self.user.id, test_contact, 'This outgoing message will not be counted')
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
         self.assertEqual(200, response.status_code)
@@ -806,7 +806,7 @@ class ChannelTest(TembaTest):
 
         # send messages with a normal contact
         Msg.create_incoming(self.tel_channel, six.text_type(joe.get_urn(TEL_SCHEME)), 'This incoming message will be counted')
-        Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
+        Msg.create_outgoing(self.org, self.user.id, joe, 'This outgoing message will be counted')
 
         # now we have an inbound message and two outbounds
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
@@ -829,7 +829,7 @@ class ChannelTest(TembaTest):
 
         from temba.msgs.models import IVR
         Msg.create_incoming(self.tel_channel, six.text_type(test_contact.get_urn()), 'incoming ivr as a test contact', msg_type=IVR)
-        Msg.create_outgoing(self.org, self.user, test_contact, 'outgoing ivr as a test contact', msg_type=IVR)
+        Msg.create_outgoing(self.org, self.user.id, test_contact, 'outgoing ivr as a test contact', msg_type=IVR)
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
         # nothing should have changed
@@ -843,7 +843,7 @@ class ChannelTest(TembaTest):
 
         # now let's create an ivr interaction from a real contact
         Msg.create_incoming(self.tel_channel, six.text_type(joe.get_urn()), 'incoming ivr', msg_type=IVR)
-        Msg.create_outgoing(self.org, self.user, joe, 'outgoing ivr', msg_type=IVR)
+        Msg.create_outgoing(self.org, self.user.id, joe, 'outgoing ivr', msg_type=IVR)
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
         self.assertEqual(4, len(response.context['message_stats']))
@@ -1514,7 +1514,7 @@ class ChannelTest(TembaTest):
         msg6 = self.send_message(['250788382382'], "Pretend this message is in retry on the client, don't send it on sync")
 
         # a pending outgoing message should be included
-        Msg.create_outgoing(self.org, self.admin, msg6.contact, "Hello, we heard from you.")
+        Msg.create_outgoing(self.org, self.admin.id, msg6.contact, "Hello, we heard from you.")
 
         six_mins_ago = timezone.now() - timedelta(minutes=6)
         self.tel_channel.last_seen = six_mins_ago
@@ -2185,7 +2185,7 @@ class ChannelCountTest(TembaTest):
         # test that messages to test contacts aren't counted
         self.admin.set_org(self.org)
         test_contact = Contact.get_test_contact(self.admin)
-        Msg.create_outgoing(self.org, self.admin, test_contact, "Test Message", channel=self.channel)
+        Msg.create_outgoing(self.org, self.admin.id, test_contact, "Test Message", channel=self.channel)
 
         # no channel counts
         self.assertFalse(ChannelCount.objects.all())
@@ -2221,7 +2221,7 @@ class ChannelCountTest(TembaTest):
 
         # ok, test outgoing now
         real_contact = Contact.get_or_create(self.org, self.admin, urns=['tel:+250788111222'])
-        msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
+        msg = Msg.create_outgoing(self.org, self.admin.id, real_contact, "Real Message", channel=self.channel)
         log = ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
 
         # squash our counts
@@ -2253,7 +2253,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
-        msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Voice",
+        msg = Msg.create_outgoing(self.org, self.admin.id, real_contact, "Real Voice",
                                   channel=self.channel, msg_type=IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
@@ -4235,7 +4235,7 @@ class InfobipTest(TembaTest):
 
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
-        msg = Msg.create_outgoing(self.org, self.user, contact, "Hi Joe")
+        msg = Msg.create_outgoing(self.org, self.user.id, contact, "Hi Joe")
         msg.external_id = '254021015120766124'
         msg.save(update_fields=('external_id',))
 
@@ -6028,7 +6028,7 @@ class ClickatellTest(TembaTest):
         self.channel.org.save()
 
         contact = self.create_contact("Joe", "+250788383383")
-        msg = Msg.create_outgoing(self.org, self.user, contact, "test")
+        msg = Msg.create_outgoing(self.org, self.user.id, contact, "test")
         msg.external_id = 'id1234'
         msg.save(update_fields=('external_id',))
 
@@ -10392,14 +10392,14 @@ class CourierTest(TembaTest):
             incoming = self.create_msg(contact=bob, text="Hello", direction="I")
 
             # create some outgoing messages for our channel
-            msg1 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065551111', "Outgoing 1",
+            msg1 = Msg.create_outgoing(self.org, self.admin.id, 'tel:+12065551111', "Outgoing 1",
                                        attachments=['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065552222', "Outgoing 2", response_to=incoming,
+            msg2 = Msg.create_outgoing(self.org, self.admin.id, 'tel:+12065552222', "Outgoing 2", response_to=incoming,
                                        attachments=[])
-            msg3 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065553333', "Outgoing 3", high_priority=False,
+            msg3 = Msg.create_outgoing(self.org, self.admin.id, 'tel:+12065553333', "Outgoing 3", high_priority=False,
                                        attachments=None)
-            msg4 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 4", high_priority=True)
-            msg5 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 5", high_priority=True)
+            msg4 = Msg.create_outgoing(self.org, self.admin.id, 'tel:+12065554444', "Outgoing 4", high_priority=True)
+            msg5 = Msg.create_outgoing(self.org, self.admin.id, 'tel:+12065554444', "Outgoing 5", high_priority=True)
             all_msgs = [msg1, msg2, msg3, msg4, msg5]
 
             Msg.send_messages(all_msgs)

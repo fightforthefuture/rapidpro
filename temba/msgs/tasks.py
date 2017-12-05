@@ -163,37 +163,11 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
     contacts = qs.filter(uuid__in=contact_uuids).order_by('name')
 
     recipients = list(contacts)
-    broadcast = Broadcast.create(org, user, text, recipients)
+    broadcast = Broadcast.create(org, user_id, text, recipients)
     broadcast.send(expressions_context={})
 
     analytics.track(user.username, 'temba.broadcast_created',
                     dict(contacts=len(contacts), groups=0, urns=0))
-
-
-@task(track_started=True, name='send_spam')
-def send_spam(user_id, contact_id):  # pragma: no cover
-    """
-    Processses a single incoming message through our queue.
-    """
-    from django.contrib.auth.models import User
-    from temba.contacts.models import Contact, TEL_SCHEME
-    from temba.msgs.models import Broadcast
-
-    contact = Contact.all().get(pk=contact_id)
-    user = User.objects.get(pk=user_id)
-    channel = contact.org.get_send_channel(TEL_SCHEME)
-
-    if not channel:  # pragma: no cover
-        print("Sorry, no channel to be all spammy with")
-        return
-
-    long_text = "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the " \
-                "selfish and the tyranny of evil men. Blessed is your face."
-
-    # only trigger sync on the last one
-    for idx in range(10):
-        broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), [contact])
-        broadcast.send(trigger_send=(idx == 149))
 
 
 @task(track_started=True, name='fail_old_messages')
