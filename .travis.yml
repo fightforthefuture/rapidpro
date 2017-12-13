@@ -2,7 +2,10 @@
 dist:
   - trusty
 sudo:
-  - false
+  - required
+group:
+  - deprecated-2017Q4
+
 
 language: python
 python:
