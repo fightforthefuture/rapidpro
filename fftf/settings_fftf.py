@@ -27,6 +27,7 @@ DEBUG_TOOLBAR = False
 RAVEN_CONFIG = {
     'dsn': os.environ.get('SENTRY_DSN'),
 }
+INSTALLED_APPS = INSTALLED_APPS + ('raven.contrib.django.raven_compat',)
 
 # -----------------------------------------------------------------------------------
 # Add a custom brand
