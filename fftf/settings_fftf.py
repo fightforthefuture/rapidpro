@@ -42,7 +42,21 @@ custom['domain'] = 'fightforthefuture.org'
 custom['email'] = 'team@fightforthefuture.org'
 custom['support_email'] = 'team@fightforthefuture.org'
 custom['allow_signups'] = True
-BRANDING['custom-brand.io'] = custom
+BRANDING['fftf'] = custom
+
+
+COMPRESS_ENABLED = True
+COMPRESS_OFFLINE = True
+COMPRESS_PRECOMPILERS = (
+    ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
+    ('text/coffeescript', 'coffee --compile --stdio')
+)
+COMPRESS_CSS_HASHING_METHOD = 'content'
+COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL,
+                                base_template='frame.html',
+                                brand=custom,
+                                debug=False,
+                                testing=False)
 
 # -----------------------------------------------------------------------------------
 # Message Broker Configuration
