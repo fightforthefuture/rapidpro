@@ -1,0 +1,2 @@
+export PATH="/app/.heroku/vendor/node/bin/:"$PATH
+ln -s /app/.heroku/vendor/node/bin/* /app
