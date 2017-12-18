@@ -41,7 +41,7 @@ custom['api_link'] = 'http://fightforthefuture.org'
 custom['domain'] = 'fightforthefuture.org'
 custom['email'] = 'team@fightforthefuture.org'
 custom['support_email'] = 'team@fightforthefuture.org'
-custom['allow_signups'] = True
+custom['allow_signups'] = False
 BRANDING['fftf'] = custom
 
 
@@ -54,7 +54,7 @@ COMPRESS_PRECOMPILERS = (
 COMPRESS_CSS_HASHING_METHOD = 'content'
 COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL,
                                 base_template='frame.html',
-                                brand=custom,
+                                brand=BRANDING[DEFAULT_BRAND],
                                 debug=False,
                                 testing=False)
 
