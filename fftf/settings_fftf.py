@@ -42,6 +42,7 @@ custom['domain'] = 'fightforthefuture.org'
 custom['email'] = 'team@fightforthefuture.org'
 custom['support_email'] = 'team@fightforthefuture.org'
 custom['allow_signups'] = False
+custom['host'] = os.environ.get('APPLICATION_HOSTNAME')
 BRANDING['fftf'] = custom
 
 
@@ -52,20 +53,12 @@ COMPRESS_PRECOMPILERS = (
     ('text/coffeescript', 'coffee --compile --stdio')
 )
 COMPRESS_CSS_HASHING_METHOD = 'content'
-COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL,
-                                base_template='frame.html',
-                                brand=BRANDING[DEFAULT_BRAND],
-                                debug=False,
-                                testing=False)
-
-# -----------------------------------------------------------------------------------
-# Message Broker Configuration
-# -----------------------------------------------------------------------------------
-HOSTNAME = os.environ.get('APPLICATION_HOSTNAME')
-ALLOWED_HOSTS = ['*']
-
-MAGE_API_URL = os.environ.get('MAGE_API_URL')
-MAGE_AUTH_TOKEN = os.environ.get('MAGE_API_TOKEN')  # should be same token as configured on Mage side
+COMPRESS_OFFLINE_CONTEXT = []
+for brand in BRANDING.values():
+    if HOSTNAME == 'localhost' or 'staging' in HOSTNAME or brand.get('host', None) == HOSTNAME:
+        context = dict(STATIC_URL=STATIC_URL, base_template='frame.html', debug=False, testing=False)
+        context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
+        COMPRESS_OFFLINE_CONTEXT.append(context)
 
 # -----------------------------------------------------------------------------------
 # Database Configuration
@@ -114,3 +107,6 @@ SEND_CHATBASE = False
 SEND_CALLS = False
 
 INTERNAL_IPS = ('127.0.0.1',)
+
+HOSTNAME = os.environ.get('APPLICATION_HOSTNAME')
+ALLOWED_HOSTS = ['*']
