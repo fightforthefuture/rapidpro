@@ -6,6 +6,7 @@ from __future__ import absolute_import, unicode_literals
 # The following are requirements:
 #     - `heroku stack:set heroku-16`
 #     - `heroku config:set BUILD_WITH_GEO_LIBRARIES=1`
+#     - `heroku config:set DISABLE_COLLECTSTATIC=1`
 #     - a PostgresQL database at DATABASE_URL
 #     - a redis instance at REDIS_URL
 #
@@ -63,7 +64,7 @@ for brand in BRANDING.values():
         context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
         COMPRESS_OFFLINE_CONTEXT.append(context)
 
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+# STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware'
