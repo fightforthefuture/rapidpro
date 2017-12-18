@@ -22,8 +22,8 @@ GEOS_LIBRARY_PATH = os.environ.get('GEOS_LIBRARY_PATH')
 
 from temba.settings_common import *  # noqa
 
-DEBUG = True
-DEBUG_TOOLBAR = True
+DEBUG = False
+DEBUG_TOOLBAR = False
 
 RAVEN_CONFIG = {
     'dsn': os.environ.get('SENTRY_DSN'),
