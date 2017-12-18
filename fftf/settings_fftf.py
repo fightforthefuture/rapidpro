@@ -31,20 +31,22 @@ RAVEN_CONFIG = {
 INSTALLED_APPS = INSTALLED_APPS + ('raven.contrib.django.raven_compat', 'crispy_forms',)
 
 # -----------------------------------------------------------------------------------
-# Add a custom brand
+# Add a custom brand, make it the default
 # -----------------------------------------------------------------------------------
 
 custom = copy.deepcopy(BRANDING['rapidpro.io'])
 custom['name'] = 'RapidPro'
 custom['slug'] = 'fftf'
 custom['org'] = 'Fight for the Future'
-custom['api_link'] = 'http://fightforthefuture.org'
-custom['domain'] = 'fightforthefuture.org'
+custom['domain'] = os.environ.get('APPLICATION_HOSTNAME')
+custom['link'] = 'https://%s' % os.environ.get('APPLICATION_HOSTNAME')
 custom['email'] = 'team@fightforthefuture.org'
 custom['support_email'] = 'team@fightforthefuture.org'
 custom['allow_signups'] = False
 custom['host'] = os.environ.get('APPLICATION_HOSTNAME')
+custom['description'] = "Visually build activism messaging applications with open source software."
 BRANDING['fftf'] = custom
+DEFAULT_BRAND = 'fftf'
 
 # -----------------------------------------------------------------------------------
 # Static files compression and hosting
@@ -65,10 +67,10 @@ for brand in BRANDING.values():
         COMPRESS_OFFLINE_CONTEXT.append(context)
 
 # STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-MIDDLEWARE_CLASSES = [
+MIDDLEWARE_CLASSES = (
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware'
-] + list(MIDDLEWARE_CLASSES)
+) + MIDDLEWARE_CLASSES
 
 # -----------------------------------------------------------------------------------
 # Database Configuration
