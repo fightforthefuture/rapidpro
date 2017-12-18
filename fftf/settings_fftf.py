@@ -27,7 +27,7 @@ DEBUG_TOOLBAR = True
 RAVEN_CONFIG = {
     'dsn': os.environ.get('SENTRY_DSN'),
 }
-INSTALLED_APPS = INSTALLED_APPS + ('raven.contrib.django.raven_compat',)
+INSTALLED_APPS = INSTALLED_APPS + ('raven.contrib.django.raven_compat', 'crispy_forms',)
 
 # -----------------------------------------------------------------------------------
 # Add a custom brand
@@ -45,6 +45,9 @@ custom['allow_signups'] = False
 custom['host'] = os.environ.get('APPLICATION_HOSTNAME')
 BRANDING['fftf'] = custom
 
+# -----------------------------------------------------------------------------------
+# Static files compression and hosting
+# -----------------------------------------------------------------------------------
 
 COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True
@@ -59,6 +62,12 @@ for brand in BRANDING.values():
         context = dict(STATIC_URL=STATIC_URL, base_template='frame.html', debug=False, testing=False)
         context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
         COMPRESS_OFFLINE_CONTEXT.append(context)
+
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+MIDDLEWARE_CLASSES = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware'
+] + list(MIDDLEWARE_CLASSES)
 
 # -----------------------------------------------------------------------------------
 # Database Configuration
