@@ -22,9 +22,8 @@ GEOS_LIBRARY_PATH = os.environ.get('GEOS_LIBRARY_PATH')
 
 from temba.settings_common import *  # noqa
 
+IS_PROD = True
 DEBUG = False
-DEBUG_TOOLBAR = False
-
 RAVEN_CONFIG = {
     'dsn': os.environ.get('SENTRY_DSN'),
 }
@@ -45,6 +44,8 @@ custom['support_email'] = 'team@fightforthefuture.org'
 custom['allow_signups'] = False
 custom['host'] = os.environ.get('APPLICATION_HOSTNAME')
 custom['description'] = "Visually build activism messaging applications with open source software."
+custom['splash'] = ['brands/fftf/splash.jpg',]
+custom['styles'] = ['brands/fftf/font/style.css',]
 BRANDING['fftf'] = custom
 DEFAULT_BRAND = 'fftf'
 
