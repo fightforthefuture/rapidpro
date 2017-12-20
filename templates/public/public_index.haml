@@ -48,6 +48,7 @@
 
     .row
       #lead-form
+        {% if brand.allow_signups %}
         %form{action:'{% ssl_brand_url "public.lead_create" %}', method:'POST'}
           -csrf_token
 
@@ -60,6 +61,12 @@
                     -trans "Create Account"
         -if errors
           %p.text-error {{error_msg}}
+        {% else %}
+          %form
+            %fieldset
+              .control-group
+                .controls
+        {% endif %}
 
     -if not thanks
       %br.clearfix{clear:"both"}
