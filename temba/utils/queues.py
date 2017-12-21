@@ -4,11 +4,11 @@ import json
 import time
 import importlib
 
-from celery import current_app, shared_task
+from celery import shared_task
 from django.conf import settings
 from django_redis import get_redis_connection
 from temba.utils import dict_to_json
-
+from temba.temba_celery import app as current_app
 
 LOW_PRIORITY = +10000000   # +10M ~ 110 days
 DEFAULT_PRIORITY = 0
