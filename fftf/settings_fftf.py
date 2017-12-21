@@ -92,6 +92,8 @@ DATABASES = {
     'direct': _direct_database_config
 }
 
+MAGE_AUTH_TOKEN = os.environ.get('MAGE_AUTH_TOKEN', 'missing_rapidpro_token')
+
 # -----------------------------------------------------------------------------------
 # Redis & Cache Configuration
 # -----------------------------------------------------------------------------------
