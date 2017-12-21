@@ -41,8 +41,8 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
 from temba.orgs.models import Org, Language, get_current_export_version
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
-from temba.utils import chunk_list, on_transaction_commit
+from temba.utils import analytics, chunk_list, on_transaction_commit
+from temba.utils.dates import get_datetime_format, str_to_datetime, datetime_to_str, json_date_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import ContactFieldCollector
@@ -214,7 +214,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
     VERSIONS = [
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0", "11.1", "11.2"
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1", "10.2", "10.3", "10.4", "11.0", "11.1", "11.2", "11.3"
     ]
 
     name = models.CharField(max_length=64,
@@ -836,6 +836,12 @@ class Flow(TembaModel):
                         child_runs = flow.start([], [run.contact], started_flows=started_flows,
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
+
+                        # it's possible that one of our children interrupted us with a start flow action
+                        run.refresh_from_db(fields=('is_active',))
+                        if not run.is_active:
+                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
+
                         if child_runs:
                             child_run = child_runs[0]
                             msgs += child_run.start_msgs
@@ -2816,7 +2822,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Hands flow control back to our parent run if we have one
         """
-        runs = runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False)
+        runs = (
+            runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False, parent__is_active=True)
+            .select_related('parent__flow')
+        )
         for run in runs:
             cls.continue_parent_flow_run(run)
 
@@ -3567,8 +3576,17 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
 
-                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook,
-                                                         headers=header)
+                # resthooks trigger legacy api for now
+                legacy_format = resthook or self.config_json().get('legacy_format', False)
+
+                if legacy_format:
+                    result = WebHookEvent.trigger_flow_webhook_legacy(run, value, self, msg, action,
+                                                                      resthook=resthook,
+                                                                      headers=header)
+                else:
+                    result = WebHookEvent.trigger_flow_webhook(run, value, self.uuid, msg, action,
+                                                               resthook=resthook,
+                                                               headers=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4839,23 +4857,35 @@ class WebhookAction(Action):
     TYPE = 'api'
     ACTION = 'action'
 
-    def __init__(self, uuid, webhook, action='POST', webhook_headers=None):
+    # old webhooks support legacy format
+    LEGACY_FORMAT = 'legacy_format'
+
+    def __init__(self, uuid, webhook, action='POST', webhook_headers=None, legacy_format=None):
         super(WebhookAction, self).__init__(uuid)
 
         self.webhook = webhook
         self.action = action
         self.webhook_headers = webhook_headers
+        self.legacy_format = legacy_format
 
     @classmethod
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID),
                    json_obj.get('webhook', org.get_webhook_url()),
                    json_obj.get('action', 'POST'),
-                   json_obj.get('webhook_headers', []))
+                   json_obj.get('webhook_headers', []),
+                   json_obj.get(cls.LEGACY_FORMAT))
 
     def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
-                    webhook_headers=self.webhook_headers)
+
+        json_dict = dict(type=self.TYPE, uuid=self.uuid, webhook=self.webhook, action=self.action,
+                         webhook_headers=self.webhook_headers)
+
+        # only include legacy format flag if it is true or false
+        if self.legacy_format is not None:
+            json_dict[self.LEGACY_FORMAT] = self.legacy_format
+
+        return json_dict
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -4870,7 +4900,10 @@ class WebhookAction(Action):
             for item in self.webhook_headers:
                 headers[item.get('name')] = item.get('value')
 
-        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, headers=headers)
+        if self.legacy_format:
+            WebHookEvent.trigger_flow_webhook_legacy(run, value, actionset_uuid, msg, self.action, headers=headers)
+        else:
+            WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
         return []
 
 
@@ -6686,8 +6719,6 @@ class DateTest(Test):
         org = run.flow.org
         day_first = org.get_dayfirst()
         tz = org.timezone
-
-        text = text.replace(' ', "-")
 
         test, errors = Msg.evaluate_template(self.test, context, org=org)
         if not errors:
