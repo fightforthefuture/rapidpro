@@ -109,6 +109,15 @@ BROKER_URL = os.environ.get('REDIS_URL')
 CELERY_BROKER_URL = os.environ.get('REDIS_URL')
 
 # -----------------------------------------------------------------------------------
+# Email Configuration
+# -----------------------------------------------------------------------------------
+EMAIL_HOST = 'smtp.sendgrid.net'
+EMAIL_HOST_USER = os.environ.get('SENDGRID_USERNAME')
+EMAIL_HOST_PASSWORD = os.environ.get('SENDGRID_PASSWORD')
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# -----------------------------------------------------------------------------------
 # RapidPro configuration settings
 # -----------------------------------------------------------------------------------
 
