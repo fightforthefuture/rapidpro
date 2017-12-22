@@ -1,3 +1,4 @@
 django-crispy-forms==1.7.0
+Collectfast==0.6.0
 whitenoise==3.3.1
 -r pip-freeze.txt

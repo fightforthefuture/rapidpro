@@ -65,6 +65,12 @@ AWS_MEDIA_LOCATION = 'media'
 DEFAULT_FILE_STORAGE = 'fftf.storage_backends.PrivateMediaStorage'
 MEDIA_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, AWS_MEDIA_LOCATION)
 
+# deploy more quickly to S3 with collectfast
+# needs to be ahead of django.contrib.collectstatic
+INSTALLED_APPS = ('collectfast',) + INSTALLED_APPS
+AWS_PRELOAD_METADATA = True
+COLLECTFAST_CACHE = 'collectfast'
+
 # -----------------------------------------------------------------------------------
 # Static files compression and hosting
 # -----------------------------------------------------------------------------------
@@ -120,6 +126,10 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
+    },
+    "collectfast": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "collectfast_cache",
     }
 }
 
