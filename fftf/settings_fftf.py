@@ -50,6 +50,22 @@ BRANDING['fftf'] = custom
 DEFAULT_BRAND = 'fftf'
 
 # -----------------------------------------------------------------------------------
+# Heroku filesystem is ephemeral, use S3 via boto
+# -----------------------------------------------------------------------------------
+
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+AWS_STATIC_LOCATION = 'static'
+STATICFILES_STORAGE = 'fftf.storage_backends.StaticStorage'
+STATIC_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, AWS_STATIC_LOCATION)
+
+AWS_MEDIA_LOCATION = 'media'
+PRIVATE_FILE_STORAGE = 'fftf.storage_backends.PrivateMediaStorage'
+MEDIA_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, AWS_MEDIA_LOCATION)
+
+# -----------------------------------------------------------------------------------
 # Static files compression and hosting
 # -----------------------------------------------------------------------------------
 
@@ -60,6 +76,7 @@ COMPRESS_PRECOMPILERS = (
     ('text/coffeescript', 'coffee --compile --stdio')
 )
 COMPRESS_CSS_HASHING_METHOD = 'content'
+COMPRESS_STORAGE = 'fftf.storage_backends.CachedS3BotoStorage'
 COMPRESS_OFFLINE_CONTEXT = []
 for brand in BRANDING.values():
     if HOSTNAME == 'localhost' or 'staging' in HOSTNAME or brand.get('host', None) == HOSTNAME:
@@ -67,7 +84,6 @@ for brand in BRANDING.values():
         context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
         COMPRESS_OFFLINE_CONTEXT.append(context)
 
-# STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 MIDDLEWARE_CLASSES = (
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware'
