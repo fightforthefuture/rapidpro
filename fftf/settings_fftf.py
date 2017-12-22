@@ -62,7 +62,7 @@ STATICFILES_STORAGE = 'fftf.storage_backends.StaticStorage'
 STATIC_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, AWS_STATIC_LOCATION)
 
 AWS_MEDIA_LOCATION = 'media'
-PRIVATE_FILE_STORAGE = 'fftf.storage_backends.PrivateMediaStorage'
+DEFAULT_FILE_STORAGE = 'fftf.storage_backends.PrivateMediaStorage'
 MEDIA_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, AWS_MEDIA_LOCATION)
 
 # -----------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ COMPRESS_PRECOMPILERS = (
     ('text/coffeescript', 'coffee --compile --stdio')
 )
 COMPRESS_CSS_HASHING_METHOD = 'content'
-COMPRESS_STORAGE = 'fftf.storage_backends.CachedS3BotoStorage'
+COMPRESS_STORAGE = 'fftf.storage_backends.CachedStaticStorage'
 COMPRESS_OFFLINE_CONTEXT = []
 for brand in BRANDING.values():
     if HOSTNAME == 'localhost' or 'staging' in HOSTNAME or brand.get('host', None) == HOSTNAME:
