@@ -17,14 +17,12 @@ SECRET_KEY = 'asdf this is a bad secret key'
 
 from .settings_fftf import *  # noqa
 
+IS_PROD = False
 DEBUG = True
 DEBUG_TOOLBAR = True
 
 HOSTNAME = 'fftf.ngrok.io'
 ALLOWED_HOSTS = ['*']
-
-COMPRESS_ENABLED = False
-COMPRESS_OFFLINE = False
 
 # -----------------------------------------------------------------------------------
 # Database Configuration(we expect a Postgres instance on localhost)
@@ -92,6 +90,16 @@ warnings.filterwarnings('error', r"DateTimeField .* received a naive datetime",
                         RuntimeWarning, r'django\.db\.models\.fields')
 
 # -----------------------------------------------------------------------------------
-# Make our sitestatic URL be our static URL on development
+# Reset static file compression and storage on development
 # -----------------------------------------------------------------------------------
 STATIC_URL = '/sitestatic/'
+MEDIA_URL = '/media/'
+
+COMPRESS_ENABLED = False
+COMPRESS_OFFLINE = False
+COMPRESS_DEBUG_TOGGLE = 'debug_compress'
+
+DEFAULT_FILE_STORAGE = 'fftf.storage_backends.SiteStaticStorage'
+STATICFILES_STORAGE = DEFAULT_FILE_STORAGE 
+COMPRESS_STORAGE = DEFAULT_FILE_STORAGE
+COMPRESS_OFFLINE_CONTEXT = []

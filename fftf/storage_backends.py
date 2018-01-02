@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.core.files.storage import get_storage_class
+from django.core.files.storage import get_storage_class, FileSystemStorage
 from storages.backends.s3boto3 import S3Boto3Storage
 
 class StaticStorage(S3Boto3Storage):
@@ -28,3 +28,6 @@ class CachedStaticStorage(StaticStorage):
         self.local_storage._save(name, content)
         super(CachedStaticStorage, self).save(name, self.local_storage._open(name))
         return name
+
+class SiteStaticStorage(FileSystemStorage):
+    base_url = '/sitestatic/'
