@@ -44,7 +44,7 @@ custom['support_email'] = 'team@fightforthefuture.org'
 custom['allow_signups'] = False
 custom['host'] = os.environ.get('APPLICATION_HOSTNAME')
 custom['description'] = "Visually build activism messaging applications with open source software."
-custom['splash'] = ['brands/fftf/splash.jpg',]
+custom['splash'] = 'brands/fftf/splash.jpg'
 custom['styles'] = ['brands/fftf/font/style.css',]
 BRANDING['fftf'] = custom
 DEFAULT_BRAND = 'fftf'
@@ -86,7 +86,7 @@ COMPRESS_OFFLINE_CONTEXT = []
 for brand in BRANDING.values():
     if HOSTNAME == 'localhost' or 'staging' in HOSTNAME or brand.get('host', None) == HOSTNAME:
         context = dict(STATIC_URL=STATIC_URL, base_template='frame.html', debug=False, testing=False)
-        context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
+        context['brand'] = dict(slug=brand['slug'], styles=brand['styles'], splash=brand['splash'])
         COMPRESS_OFFLINE_CONTEXT.append(context)
 
 MIDDLEWARE_CLASSES = (
