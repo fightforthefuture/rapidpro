@@ -24,6 +24,9 @@ DEBUG_TOOLBAR = True
 HOSTNAME = 'fftf.ngrok.io'
 ALLOWED_HOSTS = ['*']
 
+# allow signups on dev
+BRANDING['fftf']['allow_signups'] = True
+
 # -----------------------------------------------------------------------------------
 # Database Configuration(we expect a Postgres instance on localhost)
 # -----------------------------------------------------------------------------------
