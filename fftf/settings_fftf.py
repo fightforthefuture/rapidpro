@@ -164,3 +164,7 @@ INTERNAL_IPS = ('127.0.0.1',)
 
 HOSTNAME = os.environ.get('APPLICATION_HOSTNAME')
 ALLOWED_HOSTS = ['*']
+
+# increase default throttle rates
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['v2'] = '100/s'
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['v2.contacts'] = '100/s'
