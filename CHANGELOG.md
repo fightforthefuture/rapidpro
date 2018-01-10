@@ -1,4 +1,27 @@
-v3.0.296
+v3.0.303
+----------
+ * Still queue messages for sending when interrupted by a child
+
+v3.0.302
+----------
+ * Use FlowRun.current_node_uuid for sending to contacts at a given flow node
+
+v3.0.301
+----------
+ * Tweak process_message_task to not blow up if message doesn't exist
+ * Use FlowRun.message_ids for flow result exports
+
+v3.0.300
+----------
+ * Use config secret instead of secret field on Channel
+ * Add tests for datetime contact API field update
+
+v3.0.299
+----------
+ * Fix deleting resthooks
+ * Fix quick replies UI on Firefox
+
+v3.0.298
 ----------
  * Process contact queue until there's a pending message or empty
  * Make date parsing much stricter
@@ -26,15 +49,7 @@ v3.0.292
 
 v3.0.291
 ----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
-
-v3.0.289
-----------
- * ignore tms callbacks
+ * Ignore TMS callbacks
 
 v3.0.289
 ----------
