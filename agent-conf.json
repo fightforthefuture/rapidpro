@@ -1,0 +1,19 @@
+{
+   "metrics_hostname": "metrics-api.librato.com", 
+   "create": false, 
+   "hostname": "localhost", 
+   "stop": false, 
+   "app_id": "fftf-rapidpro", 
+   "no_aggregate_counters": false, 
+   "integration": "django", 
+   "debug": false, 
+   "daemonize": false, 
+   "user": "setInEnvironmentConfig",
+   "expire": 0, 
+   "api_token": "setInEnvironmentConfig", 
+   "flush_interval": 60000, 
+   "pidfile": "/var/run/solarwinds-python-statsd.pid", 
+   "pct": 95, 
+   "port": 8142, 
+   "restart": false
+}
