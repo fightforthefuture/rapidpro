@@ -6,6 +6,7 @@
    "app_id": "fftf-rapidpro", 
    "no_aggregate_counters": false, 
    "integration": "django", 
+   "libraries": ["gunicorn", "requests", "logging"],
    "debug": false, 
    "daemonize": false, 
    "user": "setInEnvironmentConfig",
